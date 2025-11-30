@@ -1,0 +1,12 @@
+node_modules
+dist
+bun.lock
+worker-configuration.d.ts
+tsconfig*.tsbuildinfo
+*.d.ts
+*.js
+
+# Editor directories and files
+.vscode
+.vite
+.wrangler
