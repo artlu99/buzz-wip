@@ -4,12 +4,15 @@ import { Toaster } from "react-hot-toast";
 import App from "./App.tsx";
 import { SocketProvider } from "./providers/SocketProvider.tsx";
 import "./index.css";
+import invariant from "tiny-invariant";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <SocketProvider>
-      <Toaster />
-      <App />
-    </SocketProvider>
-  </StrictMode>
+const root = document.getElementById("root");
+invariant(root, "Root element not found");
+createRoot(root).render(
+	<StrictMode>
+		<SocketProvider>
+			<Toaster />
+			<App />
+		</SocketProvider>
+	</StrictMode>,
 );

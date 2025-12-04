@@ -2,8 +2,8 @@ import { connect, type IttySocket } from "itty-sockets";
 
 export type WsMessage = {
   date: number; // Unix timestamp of original message
-  uid: String; // unique user ID of the sending connection
-  message: any; // your message payload
+  uid: string; // unique user ID of the sending connection
+  message: unknown; // your message payload
 };
 
 export enum WsMessageType {
@@ -37,7 +37,7 @@ export interface DoorbellMessage {
 }
 
 export function isTypingIndicatorMessage(
-  message: any
+  message: unknown
 ): message is TypingIndicatorMessage {
   return (
     typeof message === "object" &&

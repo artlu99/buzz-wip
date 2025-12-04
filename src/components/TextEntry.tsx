@@ -53,7 +53,7 @@ export const TextEntry = ({
         </button>
       </div>
       <div className="flex flex-col gap-2 flex-1 w-full">
-        <label className="text-sm text-left text-base-content/70">
+        <label htmlFor="text-entry" className="text-sm text-left text-base-content/70">
           <span className="font-semibold">You are:</span> {displayName}
         </label>
       </div>

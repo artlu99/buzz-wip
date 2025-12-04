@@ -3,20 +3,20 @@ import { Suspense, useEffect } from "react";
 import { Link, Route } from "wouter";
 import { AuthActions } from "./components/AuthActions";
 import { AvailableReactions } from "./components/AvailableReactions";
+import { Bubbles } from "./components/Bubbles";
 import { OwnerActions } from "./components/OwnerActions";
+import { TextEntry } from "./components/TextEntry";
 import { Todos } from "./components/Todos";
+import { TypingIndicators } from "./components/TypingIndicators";
 import { useZustand } from "./hooks/use-zustand";
 import { evoluInstance } from "./lib/local-first";
 import {
   DoorbellType,
-  TypingIndicatorMessage,
+  type TypingIndicatorMessage,
   TypingIndicatorType,
   WsMessageType,
 } from "./lib/sockets";
 import { useSocket } from "./providers/SocketProvider";
-import { Bubbles } from "./components/Bubbles";
-import { TypingIndicators } from "./components/TypingIndicators";
-import { TextEntry } from "./components/TextEntry";
 
 /**
  * Subscribe to unexpected Evolu errors (database, network, sync issues). These
@@ -41,7 +41,7 @@ function App() {
       uuid: displayName,
       text: DoorbellType.OPEN,
     });
-  }, [displayName]);
+  }, [displayName, socketClient]);
 
   const handleTyping = () => {
     // const timestamp = new Date().toISOString();
