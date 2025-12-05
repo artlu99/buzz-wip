@@ -1,23 +1,27 @@
 import type { OwnerId } from "@evolu/common";
 import { localAuth } from "@evolu/react-web";
 import { type FC, use, useMemo } from "react";
-import { authResult, ownerIds, service, useEvolu } from "../lib/local-first";
+import { service, useEvolu } from "../lib/local-first";
 import { OwnerProfile } from "./OwnerProfile";
 
 export const AuthActions: FC = () => {
 	const evolu = useEvolu();
 	const appOwner = use(evolu.appOwner);
+	const ownerIds = use(localAuth.getProfiles({ service }).then((result) => {
+		return result?.filter(({ ownerId }) => ownerId !== appOwner?.id);
+	}));
 	const otherOwnerIds = useMemo(
 		() => ownerIds.filter(({ ownerId }) => ownerId !== appOwner?.id),
-		[appOwner?.id],
+		[ownerIds, appOwner?.id],
 	);
-
+	
 	// Create a new owner and register it to a passkey.
 	const handleRegisterClick = async () => {
 		const username = window.prompt("Enter your username:");
 		if (username == null) return;
 
 		// Determine if this is a guest login or a new owner.
+		const authResult = await localAuth.getOwner({ service })
 		const isGuest = authResult?.owner === undefined;
 
 		// Register the guest owner or create a new one if this is already registered.

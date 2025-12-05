@@ -31,9 +31,8 @@ export const Schema = {
 // Namespace for the current app (scopes databases, passkeys, etc.)
 export const service = "pwa-react-151125";
 
-// Note: this is a top-level await
-export const authResult = await localAuth.getOwner({ service });
-export const ownerIds = await localAuth.getProfiles({ service });
+// N.B.: this is a top-level await
+const authResult = await localAuth.getOwner({ service });
 
 // Create Evolu instance for the React web platform.
 export const evoluInstance = createEvolu(evoluReactWebDeps)(Schema, {
@@ -48,26 +47,30 @@ export const evoluInstance = createEvolu(evoluReactWebDeps)(Schema, {
 	],
 });
 
+/**
+ * Subscribe to unexpected Evolu errors (database, network, sync issues). These
+ * should not happen in normal operation, so always log them for debugging. Show
+ * users a friendly error message instead of technical details.
+ */
+evoluInstance.subscribeError(() => {
+	const error = evoluInstance.getError();
+	if (!error) return;
+
+	alert("🚨 Evolu error occurred! Check the console.");
+	console.error(error);
+});
+
 export const useEvolu = createUseEvolu(evoluInstance);
 
-export const todosQuery = evoluInstance.createQuery((db) =>
-	db
-		// Type-safe SQL: try autocomplete for table and column names.
-		.selectFrom("todo")
-		.select(["id", "title", "isCompleted"])
-		// Soft delete: filter out deleted rows.
-		.where("isDeleted", "is not", sqliteTrue)
-		// Like with GraphQL, all columns except id are nullable in queries
-		// (even if defined without nullOr in the schema) to allow schema
-		// evolution without migrations. Filter nulls with where + $narrowType.
-		.where("title", "is not", null)
-		.$narrowType<{ title: kysely.NotNull }>()
-		// Columns createdAt, updatedAt, isDeleted are auto-added to all tables.
-		.orderBy("createdAt"),
-);
-export type TodosRow = typeof todosQuery.Row;
-
 export const messagesQuery = (ownerId?: OwnerId) =>
+	// Columns createdAt, updatedAt, isDeleted are auto-added to all tables.
+
+	// Soft delete: filter out deleted rows.
+
+	// Like with GraphQL, all columns except id are nullable in queries
+	// (even if defined without nullOr in the schema) to allow schema
+	// evolution without migrations. Filter nulls with where + $narrowType.
+
 	evoluInstance.createQuery((db) =>
 		ownerId
 			? db

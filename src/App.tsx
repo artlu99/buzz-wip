@@ -9,25 +9,11 @@ import { HelloUser } from "./components/HelloUser";
 import { MessageSender } from "./components/MessageSender";
 import { OwnerActions } from "./components/OwnerActions";
 import { TextMessageHandler } from "./components/TextMessageHandler";
-import { Todos } from "./components/Todos";
 import { TypingIndicators } from "./components/TypingIndicators";
 import { useZustand } from "./hooks/use-zustand";
 import { evoluInstance } from "./lib/local-first";
 import { DoorbellType, WsMessageType } from "./lib/sockets";
 import { useSocket } from "./providers/SocketProvider";
-
-/**
- * Subscribe to unexpected Evolu errors (database, network, sync issues). These
- * should not happen in normal operation, so always log them for debugging. Show
- * users a friendly error message instead of technical details.
- */
-evoluInstance.subscribeError(() => {
-	const error = evoluInstance.getError();
-	if (!error) return;
-
-	alert("🚨 Evolu error occurred! Check the console.");
-	console.error(error);
-});
 
 function App() {
 	const socketClient = useSocket();
@@ -116,7 +102,6 @@ function App() {
 									<MessageSender />
 								</Route>
 								<Route path="/db">
-									<Todos />
 									<OwnerActions />
 									<AuthActions />
 								</Route>

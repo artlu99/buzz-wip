@@ -1,10 +1,9 @@
 {
-    "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "buzz",
-    "compatibility_date": "2025-11-25",
-    "assets": {
-      "directory": "./dist/assets/",
-      "not_found_handling": "single-page-application"
-    },
-    "observability": { "enabled": true }
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "buzz",
+	"assets": {
+		"directory": "./dist/assets/",
+		"not_found_handling": "single-page-application"
+	},
+	"observability": { "enabled": true }
+}

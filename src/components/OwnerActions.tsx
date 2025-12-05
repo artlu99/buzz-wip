@@ -1,12 +1,18 @@
 import { Mnemonic } from "@evolu/common";
+import { localAuth } from "@evolu/react-web";
 import { type FC, use, useState } from "react";
 import { formatTypeError } from "../lib/helpers";
-import { authResult, useEvolu } from "../lib/local-first";
+import { service, useEvolu } from "../lib/local-first";
 import { OwnerProfile } from "./OwnerProfile";
 
 export const OwnerActions: FC = () => {
 	const evolu = useEvolu();
 	const appOwner = use(evolu.appOwner);
+	const username = use(
+		localAuth.getOwner({ service }).then((result) => {
+			return result?.username;
+		}),
+	);
 
 	const [showMnemonic, setShowMnemonic] = useState(false);
 
@@ -50,7 +56,7 @@ export const OwnerActions: FC = () => {
 					<OwnerProfile
 						{...{
 							ownerId: appOwner.id,
-							username: authResult?.username ?? "Guest",
+							username: username ?? "Guest",
 						}}
 					/>
 				</div>
@@ -71,7 +77,10 @@ export const OwnerActions: FC = () => {
 
 				{showMnemonic && appOwner.mnemonic && (
 					<div className="bg-gray-50 p-3">
-						<label className="mb-2 block text-xs font-medium text-gray-700">
+						<label
+							htmlFor="mnemonic"
+							className="mb-2 block text-xs font-medium text-gray-700"
+						>
 							Your Mnemonic (keep this safe!)
 						</label>
 						<textarea
