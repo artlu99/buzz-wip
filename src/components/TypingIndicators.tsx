@@ -1,31 +1,36 @@
+import type { OwnerId } from "@evolu/common";
+import { EvoluIdenticon } from "@evolu/react-web";
 import { useEffect, useState } from "react";
 import {
-	isTypingIndicatorMessage,
-	type TypingIndicatorMessage,
+	isTypingIndicatorWsMessage,
 	TypingIndicatorType,
+	type TypingIndicatorWsMessage,
 	type WsMessage,
 	WsMessageType,
 } from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
+import { chosenIdenticonStyle } from "../lib/helpers";
 
 const STALE_TIME = 5000; // 5 seconds
 
 export const TypingIndicators = () => {
-	const [typingIndicators, setTypingIndicators] = useState<WsMessage[]>([]);
+	const [typingIndicators, setTypingIndicators] = useState<
+		TypingIndicatorWsMessage[]
+	>([]);
 	const socketClient = useSocket();
 
 	useEffect(() => {
 		socketClient.on(WsMessageType.STATUS, (e: WsMessage) => {
-			if (!isTypingIndicatorMessage(e.message)) {
+			if (!isTypingIndicatorWsMessage(e)) {
 				return;
 			}
-			const payload: TypingIndicatorMessage = e.message;
+			const payload = e.message;
 			const id = payload.uuid ?? "unknown";
 
 			if (payload.presence === TypingIndicatorType.TYPING) {
 				setTypingIndicators((prev) => {
 					const withoutExisting = prev.filter(
-						(item) => (item.message as TypingIndicatorMessage).uuid !== id,
+						(item) => item.message.uuid !== id,
 					);
 					const withoutStale = [...withoutExisting, e].filter(
 						(item) => Date.now() < new Date(item.date).getTime() + STALE_TIME,
@@ -42,21 +47,24 @@ export const TypingIndicators = () => {
 	}, [socketClient]);
 
 	return typingIndicators
-		.filter(
-			(item) =>
-				item.message?.type === WsMessageType.STATUS &&
-				item.message?.presence === TypingIndicatorType.TYPING,
-		)
+		.filter((item) => item.message.presence === TypingIndicatorType.TYPING)
 		.map((indicator) => (
 			<div key={`${indicator.message.uuid}`} className="chat chat-start">
 				<div className="chat-header">
-					{indicator.message.uuid}
-					<time className="text-xs opacity-50 ml-2">
+					<div className="w-4 h-4 inline-block">
+						<EvoluIdenticon
+							id={indicator.message.uuid as OwnerId}
+							size={16}
+							style={chosenIdenticonStyle}
+						/>
+					</div>
+					started typing...
+				</div>
+				<div className="chat-footer opacity-50">
+					<time className="text-xs ml-2">
 						{new Date(indicator.date).toLocaleTimeString()}
 					</time>
 				</div>
-				<div className="chat-bubble chat-bubble-info">Typing...</div>
-				<div className="chat-footer opacity-50">disappears after 5 seconds</div>
 			</div>
 		));
 };

@@ -4,6 +4,7 @@ import {
 	type kysely,
 	NonEmptyString100,
 	nullOr,
+	OwnerId,
 	SimpleName,
 	SqliteBoolean,
 	sqliteTrue,
@@ -12,12 +13,18 @@ import { createUseEvolu } from "@evolu/react";
 import { evoluReactWebDeps, localAuth } from "@evolu/react-web";
 
 const TodoId = id("Todo");
+export const MessageId = id("Message");
 
 export const Schema = {
 	todo: {
 		id: TodoId,
 		title: NonEmptyString100,
 		isCompleted: nullOr(SqliteBoolean),
+	},
+	message: {
+		id: MessageId,
+		content: NonEmptyString100,
+		createdBy: OwnerId,
 	},
 };
 
@@ -35,7 +42,8 @@ export const evoluInstance = createEvolu(evoluReactWebDeps)(Schema, {
 	externalAppOwner: authResult?.owner,
 
 	transports: [
-		{ type: "WebSocket", url: "wss://evolu-relay.artlu.xyz" },
+		{ type: "WebSocket", url: "wss://evolu-relay-1.artlu.xyz" },
+		{ type: "WebSocket", url: "wss://evolu-relay-2.artlu.xyz" },
 		{ type: "WebSocket", url: "wss://free.evoluhq.com" },
 	],
 });
@@ -57,6 +65,23 @@ export const todosQuery = evoluInstance.createQuery((db) =>
 		// Columns createdAt, updatedAt, isDeleted are auto-added to all tables.
 		.orderBy("createdAt"),
 );
-
-// Extract the row type from the query for type-safe component props.
 export type TodosRow = typeof todosQuery.Row;
+
+export const messagesQuery = (ownerId?: OwnerId) =>
+	evoluInstance.createQuery((db) =>
+		ownerId
+			? db
+					.selectFrom("message")
+					.select(["id", "content", "createdBy", "createdAt"])
+					.where("createdBy", "is", ownerId)
+					.where("isDeleted", "is not", sqliteTrue)
+					.$narrowType<{ content: kysely.NotNull }>()
+					.orderBy("createdAt")
+			: db
+					.selectFrom("message")
+					.select(["id", "content", "createdBy", "createdAt"])
+					.where("isDeleted", "is not", sqliteTrue)
+					.$narrowType<{ content: kysely.NotNull }>()
+					.orderBy("createdAt"),
+	);
+export type MessagesRow = ReturnType<typeof messagesQuery>["Row"];

@@ -1,6 +1,7 @@
 import type { OwnerId } from "@evolu/common";
 import { EvoluIdenticon } from "@evolu/react-web";
 import type { FC } from "react";
+import { chosenIdenticonStyle } from "../lib/helpers";
 
 export const OwnerProfile: FC<{
 	ownerId: OwnerId;
@@ -10,7 +11,7 @@ export const OwnerProfile: FC<{
 	return (
 		<div className="flex justify-between gap-3">
 			<div className="flex items-center gap-3">
-				<EvoluIdenticon id={ownerId} />
+				<EvoluIdenticon id={ownerId} size={24} style={chosenIdenticonStyle} />
 				<span className="text-sm font-medium text-gray-900">{username}</span>
 				<span className="text-xs text-gray-500 italic">{ownerId}</span>
 			</div>

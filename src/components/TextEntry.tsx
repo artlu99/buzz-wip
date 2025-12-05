@@ -4,7 +4,7 @@ import { useZustand } from "../hooks/use-zustand";
 interface TextEntryProps {
   onTyping?: () => void;
   onStopTyping?: () => void;
-  onSend?: () => void;
+  onSend?: (message: string) => void;
 }
 
 export const TextEntry = ({
@@ -20,8 +20,25 @@ export const TextEntry = ({
   };
   const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    onSend?.();
-    setMessage("");
+    if (message.trim()) {
+      onSend?.(message);
+      setMessage("");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (message.trim()) {
+        onSend?.(message);
+        setMessage("");
+      }
+      onStopTyping?.();
+    } else if (e.key === "Escape") {
+      onStopTyping?.();
+    } else {
+      onTyping?.();
+    }
   };
   return (
     <form className="form-control flex flex-col gap-2 items-center justify-center">
@@ -32,13 +49,7 @@ export const TextEntry = ({
           className="input input-bordered"
           value={message}
           onChange={handleChange}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === "Escape") {
-              onStopTyping?.();
-            } else {
-              onTyping?.();
-            }
-          }}
+          onKeyDown={handleKeyDown}
         />
         <button
           className="btn btn-primary"

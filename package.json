@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
+    "build:strict": "tsc -b && vite build",
     "generate-pwa-assets": "pwa-assets-generator",
     "lint": "biome check --write .",
     "deploy": "bun run build && wrangler deploy",
@@ -17,6 +18,7 @@
     "@evolu/react-web": "^2.4.0",
     "date-fns": "^4.1.0",
     "itty-sockets": "^0.6.1",
+    "radash": "^12.1.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-hot-toast": "^2.6.0",

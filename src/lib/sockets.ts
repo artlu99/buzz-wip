@@ -33,7 +33,15 @@ export interface TypingIndicatorMessage {
 export interface DoorbellMessage {
   uuid?: string;
   type: WsMessageType.DOORBELL;
-  text: DoorbellType;
+  message: DoorbellType;
+}
+
+export interface TextMessage {
+  uuid?: string;
+  type: WsMessageType.TEXT;
+  content: string;
+  createdAt: number;
+  createdBy: string;
 }
 
 export function isTypingIndicatorMessage(
@@ -50,6 +58,38 @@ export function isTypingIndicatorMessage(
   );
 }
 
+export function isTextMessage(message: unknown): message is TextMessage {
+  return (
+    typeof message === "object" &&
+    message !== null &&
+    "type" in message &&
+    message.type === WsMessageType.TEXT
+  );
+}
+
+export function isDoorbellMessage(
+  message: unknown
+): message is DoorbellMessage {
+  return (
+    typeof message === "object" &&
+    message !== null &&
+    "type" in message &&
+    message.type === WsMessageType.DOORBELL &&
+    "message" in message &&
+    (message.message === DoorbellType.OPEN || message.message === DoorbellType.CLOSE)
+  );
+}
+
+export type TypingIndicatorWsMessage = WsMessage & {
+  message: TypingIndicatorMessage;
+};
+
+export function isTypingIndicatorWsMessage(
+  wsMessage: WsMessage
+): wsMessage is TypingIndicatorWsMessage {
+  return isTypingIndicatorMessage(wsMessage.message);
+}
+
 export class TypedWsClient {
   private socket: IttySocket;
 
@@ -61,7 +101,7 @@ export class TypedWsClient {
     this.socket.on(event as string, callback);
   }
 
-  public send(message: TypingIndicatorMessage | DoorbellMessage) {
+  public send(message: TypingIndicatorMessage | DoorbellMessage | TextMessage) {
     this.socket.send(message);
   }
 }

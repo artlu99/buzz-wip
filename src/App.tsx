@@ -4,18 +4,16 @@ import { Link, Route } from "wouter";
 import { AuthActions } from "./components/AuthActions";
 import { AvailableReactions } from "./components/AvailableReactions";
 import { Bubbles } from "./components/Bubbles";
+import { ClearMessagesElement } from "./components/ClearMessagesElement";
+import { HelloUser } from "./components/HelloUser";
+import { MessageSender } from "./components/MessageSender";
 import { OwnerActions } from "./components/OwnerActions";
-import { TextEntry } from "./components/TextEntry";
+import { TextMessageHandler } from "./components/TextMessageHandler";
 import { Todos } from "./components/Todos";
 import { TypingIndicators } from "./components/TypingIndicators";
 import { useZustand } from "./hooks/use-zustand";
 import { evoluInstance } from "./lib/local-first";
-import {
-  DoorbellType,
-  type TypingIndicatorMessage,
-  TypingIndicatorType,
-  WsMessageType,
-} from "./lib/sockets";
+import { DoorbellType, WsMessageType } from "./lib/sockets";
 import { useSocket } from "./providers/SocketProvider";
 
 /**
@@ -24,94 +22,111 @@ import { useSocket } from "./providers/SocketProvider";
  * users a friendly error message instead of technical details.
  */
 evoluInstance.subscribeError(() => {
-  const error = evoluInstance.getError();
-  if (!error) return;
+	const error = evoluInstance.getError();
+	if (!error) return;
 
-  alert("🚨 Evolu error occurred! Check the console.");
-  console.error(error);
+	alert("🚨 Evolu error occurred! Check the console.");
+	console.error(error);
 });
 
 function App() {
-  const socketClient = useSocket();
-  const { displayName } = useZustand();
+	const socketClient = useSocket();
+	const { displayName, setDisplayName } = useZustand();
 
-  useEffect(() => {
-    socketClient.send({
-      type: WsMessageType.DOORBELL,
-      uuid: displayName,
-      text: DoorbellType.OPEN,
-    });
-  }, [displayName, socketClient]);
+	useEffect(() => {
+		const getAppOwner = async () => {
+			const appOwner = await evoluInstance.appOwner;
+			if (appOwner) {
+				setDisplayName(appOwner.id.toString());
+			}
+		};
+		getAppOwner();
+	}, [setDisplayName]);
 
-  const handleTyping = () => {
-    // const timestamp = new Date().toISOString();
+	useEffect(() => {
+		socketClient.send({
+			type: WsMessageType.DOORBELL,
+			uuid: displayName,
+			message: DoorbellType.OPEN,
+		});
+	}, [displayName, socketClient]);
 
-    const message: TypingIndicatorMessage = {
-      uuid: displayName,
-      type: WsMessageType.STATUS,
-      presence: TypingIndicatorType.TYPING,
-    };
-    try {
-      socketClient.send(message);
-    } catch (err) {
-      console.error("Failed to send typing indicator", err);
-    }
-  };
+	// Send "bye" message when browser/tab closes
+	useEffect(() => {
+		const handleBeforeUnload = () => {
+			try {
+				socketClient.send({
+					type: WsMessageType.DOORBELL,
+					uuid: displayName,
+					message: DoorbellType.CLOSE,
+				});
+			} catch (err) {
+				// Socket might already be closed, which is fine
+				console.log("Could not send bye message:", err);
+			}
+		};
 
-  const handleStopTyping = () => {
-    const message: TypingIndicatorMessage = {
-      uuid: displayName,
-      type: WsMessageType.STATUS,
-      presence: TypingIndicatorType.STOP_TYPING,
-    };
-    try {
-      socketClient.send(message);
-    } catch (err) {
-      console.error("Failed to send stop_typing indicator", err);
-    }
-  };
+		// Also handle visibility change (tab switching, minimizing)
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "hidden") {
+				try {
+					socketClient.send({
+						type: WsMessageType.DOORBELL,
+						uuid: displayName,
+						message: DoorbellType.CLOSE,
+					});
+				} catch (err) {
+					console.log("Could not send bye message on visibility change:", err);
+				}
+			}
+		};
 
-  return (
-    <div className="">
-      <Suspense fallback={<div>Initiating...</div>}>
-        <div className="min-h-screen px-8 py-8">
-          <div className="mx-auto max-w-md">
-            <div className="mb-2 flex items-center justify-between pb-4">
-              <h1 className="w-full text-center text-xl font-semibold text-gray-900">
-                <Link href="/">Buzz | artlu99</Link>
-              </h1>
-              <p className="text-sm text-gray-500">
-                <Link href="/db">{displayName}</Link>
-              </p>
-            </div>
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		document.addEventListener("visibilitychange", handleVisibilityChange);
 
-            <EvoluProvider value={evoluInstance}>
-              {/*
-            Suspense delivers great UX (no loading flickers) and DX (no loading
-            states to manage). Highly recommended with Evolu.
-          */}
-              <Suspense>
-                <Route path="/">
-                  <AvailableReactions />
-                  <Bubbles />
-                  <TypingIndicators />
-                  <TextEntry
-                    onTyping={handleTyping}
-                    onStopTyping={handleStopTyping}
-                  />
-                </Route>
-                <Route path="/db">
-                  <Todos />
-                  <OwnerActions />
-                  <AuthActions />
-                </Route>
-              </Suspense>
-            </EvoluProvider>
-          </div>
-        </div>
-      </Suspense>
-    </div>
-  );
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+		};
+	}, [displayName, socketClient]);
+
+	return (
+		<div className="">
+			<Suspense fallback={<div>Initiating...</div>}>
+				<div className="min-h-screen px-8 py-8">
+					<div className="mx-auto max-w-md">
+						<div className="mb-2 flex items-center justify-between pb-4">
+							<h1 className="w-full text-center text-xl font-semibold text-gray-900">
+								<Link href="/">Buzz | artlu99</Link>
+							</h1>
+							<p className="text-sm text-gray-500">
+								<Link href="/db">{displayName}</Link>
+							</p>
+						</div>
+
+						<EvoluProvider value={evoluInstance}>
+							<TextMessageHandler />
+							<Suspense>
+								<Route path="/">
+									<ClearMessagesElement />
+									<AvailableReactions />
+									<HelloUser />
+									<Bubbles />
+									<TypingIndicators />
+									<MessageSender />
+								</Route>
+								<Route path="/db">
+									<Todos />
+									<OwnerActions />
+									<AuthActions />
+								</Route>
+							</Suspense>
+						</EvoluProvider>
+					</div>
+				</div>
+			</Suspense>
+		</div>
+	);
 }
 
 export default App;
