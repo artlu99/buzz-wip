@@ -1,17 +1,45 @@
 import type { OwnerId } from "@evolu/common";
+import { sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { alphabetical, unique } from "radash";
 import { useZustand } from "../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../lib/helpers";
-import { messagesQuery } from "../lib/local-first";
+import { messagesQuery, useEvolu } from "../lib/local-first";
+import type { DeleteMessage } from "../lib/sockets";
+import { WsMessageType } from "../lib/sockets";
+import { useSocket } from "../providers/SocketProvider";
 import { ClickableDateSpan } from "./ClickableDateSpan";
 import { MessageReactions } from "./MessageReactions";
 
 export const Bubbles = () => {
 	const { displayName } = useZustand();
+	const { update } = useEvolu();
+	const socketClient = useSocket();
 
 	const messagesQueryResult = useQuery(messagesQuery());
+
+	const handleDelete = (item: typeof messagesQueryResult[0]) => {
+		// Soft delete the message in local database
+		update("message", {
+			id: item.id,
+			isDeleted: sqliteTrue,
+		});
+
+		// Send DELETE message over websocket
+		const deleteMessage: DeleteMessage = {
+			uuid: displayName,
+			type: WsMessageType.DELETE,
+			messageCreatedBy: item.createdBy,
+			messageContent: item.content,
+			createdBy: displayName,
+		};
+		try {
+			socketClient.send(deleteMessage);
+		} catch (err) {
+			console.error("Failed to send delete message", err);
+		}
+	};
 
 	const messages = alphabetical(
 		unique(messagesQueryResult, (m) => `${m.createdBy}-${m.createdAt}`),
@@ -62,6 +90,15 @@ export const Bubbles = () => {
 							messageContent={item.content}
 							isOwnMessage={isMine}
 						/>
+					)}
+					{isMine && (
+						<button
+							onClick={() => handleDelete(item)}
+							className="btn btn-ghost btn-xs opacity-50 hover:opacity-100"
+							title="Delete message"
+						>
+							🗑️
+						</button>
 					)}
 				</div>
 			</div>

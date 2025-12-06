@@ -11,6 +11,7 @@ export enum WsMessageType {
 	STATUS = "status",
 	REACTION = "reaction",
 	TEXT = "text",
+	DELETE = "delete",
 }
 
 export enum TypingIndicatorType {
@@ -54,6 +55,15 @@ export interface ReactionMessage {
 	reaction: string;
 	createdBy: string;
 	isDeleted: boolean;
+}
+
+export interface DeleteMessage {
+	uuid?: string;
+	type: WsMessageType.DELETE;
+	// Use message identifiers to match the message to delete
+	messageCreatedBy: string;
+	messageContent: string;
+	createdBy: string; // The person deleting (should be the original sender)
 }
 
 export function isTypingIndicatorMessage(
@@ -110,6 +120,18 @@ export function isReactionMessage(
 	);
 }
 
+export function isDeleteMessage(message: unknown): message is DeleteMessage {
+	return (
+		typeof message === "object" &&
+		message !== null &&
+		"type" in message &&
+		message.type === WsMessageType.DELETE &&
+		"messageCreatedBy" in message &&
+		"messageContent" in message &&
+		"createdBy" in message
+	);
+}
+
 export type TypingIndicatorWsMessage = WsMessage & {
 	message: TypingIndicatorMessage;
 };
@@ -158,6 +180,13 @@ export class TypedWsClient {
 			return `reaction:${message.messageCreatedBy}:${message.messageContent}:${message.createdBy}:${message.reaction}:${message.isDeleted}:${roundedTime}`;
 		}
 
+		// De-dup DELETE messages: message identifiers + deleter + timestamp
+		if (isDeleteMessage(message)) {
+			const roundedTime =
+				Math.floor(date / TIME_ROUNDING_MS) * TIME_ROUNDING_MS;
+			return `delete:${message.messageCreatedBy}:${message.messageContent}:${message.createdBy}:${roundedTime}`;
+		}
+
 		// Other message types don't need de-dup (STATUS, DOORBELL are idempotent or stateful)
 		return null;
 	}
@@ -187,7 +216,8 @@ export class TypedWsClient {
 			| TypingIndicatorMessage
 			| DoorbellMessage
 			| TextMessage
-			| ReactionMessage,
+			| ReactionMessage
+			| DeleteMessage,
 	) {
 		this.socket.send(message);
 	}

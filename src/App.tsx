@@ -5,6 +5,7 @@ import { AuthActions } from "./components/AuthActions";
 import { AvailableReactions } from "./components/AvailableReactions";
 import { Bubbles } from "./components/Bubbles";
 import { ClearMessagesElement } from "./components/ClearMessagesElement";
+import { DeleteMessageHandler } from "./components/DeleteMessageHandler";
 import { HelloUser } from "./components/HelloUser";
 import { MessageSender } from "./components/MessageSender";
 import { OwnerActions } from "./components/OwnerActions";
@@ -94,6 +95,7 @@ function App() {
 						<EvoluProvider value={evoluInstance}>
 							<TextMessageHandler />
 							<ReactionMessageHandler />
+							<DeleteMessageHandler />
 							<Suspense>
 								<Route path="/">
 									<ClearMessagesElement />
