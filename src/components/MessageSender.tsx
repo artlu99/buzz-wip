@@ -1,14 +1,14 @@
 import type { OwnerId } from "@evolu/common";
-import { useEvolu } from "../lib/local-first";
 import { useZustand } from "../hooks/use-zustand";
-import { useSocket } from "../providers/SocketProvider";
-import { TextEntry } from "./TextEntry";
+import { useEvolu } from "../lib/local-first";
 import type { TextMessage } from "../lib/sockets";
 import {
-	WsMessageType,
-	TypingIndicatorType,
 	type TypingIndicatorMessage,
+	TypingIndicatorType,
+	WsMessageType,
 } from "../lib/sockets";
+import { useSocket } from "../providers/SocketProvider";
+import { TextEntry } from "./TextEntry";
 
 export const MessageSender = () => {
 	const { insert } = useEvolu();
@@ -35,11 +35,11 @@ export const MessageSender = () => {
 		}
 
 		// Send the TEXT message over websocket
+		// Note: timestamp comes from envelope (e.date), not from payload
 		const textMessage: TextMessage = {
 			uuid: displayName,
 			type: WsMessageType.TEXT,
 			content: content,
-			createdAt: Math.floor(Date.now() / 500) * 500, // Round down to nearest half second
 			createdBy: displayName,
 		};
 		try {

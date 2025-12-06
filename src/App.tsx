@@ -8,6 +8,7 @@ import { ClearMessagesElement } from "./components/ClearMessagesElement";
 import { HelloUser } from "./components/HelloUser";
 import { MessageSender } from "./components/MessageSender";
 import { OwnerActions } from "./components/OwnerActions";
+import { ReactionMessageHandler } from "./components/ReactionMessageHandler";
 import { TextMessageHandler } from "./components/TextMessageHandler";
 import { TypingIndicators } from "./components/TypingIndicators";
 import { useZustand } from "./hooks/use-zustand";
@@ -92,6 +93,7 @@ function App() {
 
 						<EvoluProvider value={evoluInstance}>
 							<TextMessageHandler />
+							<ReactionMessageHandler />
 							<Suspense>
 								<Route path="/">
 									<ClearMessagesElement />

@@ -3,28 +3,29 @@ import {
 	id,
 	type kysely,
 	NonEmptyString100,
-	nullOr,
 	OwnerId,
 	SimpleName,
-	SqliteBoolean,
 	sqliteTrue,
 } from "@evolu/common";
 import { createUseEvolu } from "@evolu/react";
 import { evoluReactWebDeps, localAuth } from "@evolu/react-web";
 
-const TodoId = id("Todo");
 export const MessageId = id("Message");
+export type MessageId = typeof MessageId.Type;
+export const ReactionId = id("Reaction");
+export type ReactionId = typeof ReactionId.Type;
 
 export const Schema = {
-	todo: {
-		id: TodoId,
-		title: NonEmptyString100,
-		isCompleted: nullOr(SqliteBoolean),
-	},
 	message: {
 		id: MessageId,
 		content: NonEmptyString100,
 		createdBy: OwnerId,
+	},
+	reaction: {
+		id: ReactionId,
+		messageId: MessageId,
+		createdBy: OwnerId,
+		reaction: NonEmptyString100,
 	},
 };
 
@@ -62,15 +63,15 @@ evoluInstance.subscribeError(() => {
 
 export const useEvolu = createUseEvolu(evoluInstance);
 
+// Columns createdAt, updatedAt, isDeleted are auto-added to all tables.
+
+// Soft delete: filter out deleted rows.
+
+// Like with GraphQL, all columns except id are nullable in queries
+// (even if defined without nullOr in the schema) to allow schema
+// evolution without migrations. Filter nulls with where + $narrowType.
+
 export const messagesQuery = (ownerId?: OwnerId) =>
-	// Columns createdAt, updatedAt, isDeleted are auto-added to all tables.
-
-	// Soft delete: filter out deleted rows.
-
-	// Like with GraphQL, all columns except id are nullable in queries
-	// (even if defined without nullOr in the schema) to allow schema
-	// evolution without migrations. Filter nulls with where + $narrowType.
-
 	evoluInstance.createQuery((db) =>
 		ownerId
 			? db
@@ -79,12 +80,62 @@ export const messagesQuery = (ownerId?: OwnerId) =>
 					.where("createdBy", "is", ownerId)
 					.where("isDeleted", "is not", sqliteTrue)
 					.$narrowType<{ content: kysely.NotNull }>()
-					.orderBy("createdAt")
+					.orderBy("createdAt", "asc")
 			: db
 					.selectFrom("message")
 					.select(["id", "content", "createdBy", "createdAt"])
 					.where("isDeleted", "is not", sqliteTrue)
 					.$narrowType<{ content: kysely.NotNull }>()
-					.orderBy("createdAt"),
+					.$narrowType<{ content: kysely.NotNull }>()
+					.orderBy("message.createdAt", "asc"),
 	);
 export type MessagesRow = ReturnType<typeof messagesQuery>["Row"];
+
+export const reactionsQuery = (messageId: MessageId) =>
+	evoluInstance.createQuery((db) =>
+		db
+			.selectFrom("reaction")
+			.select(["id", "reaction", "createdBy", "updatedAt"])
+			.where("messageId", "is", messageId)
+			.where("isDeleted", "is not", sqliteTrue)
+			.$narrowType<{ reaction: kysely.NotNull }>()
+			.orderBy("updatedAt", "desc"),
+	);
+export type ReactionsRow = ReturnType<typeof reactionsQuery>["Row"];
+
+// Query all reactions for a message including deleted ones for upsert
+export const allReactionsQuery = (messageId: MessageId) =>
+	evoluInstance.createQuery((db) =>
+		db
+			.selectFrom("reaction")
+			.select([
+				"id",
+				"reaction",
+				"createdBy",
+				"updatedAt",
+				"isDeleted",
+				"messageId",
+			])
+			.where("messageId", "is", messageId)
+			.$narrowType<{ reaction: kysely.NotNull }>(),
+	);
+export type AllReactionsRow = ReturnType<typeof allReactionsQuery>["Row"];
+
+// Query all reactions for all messages including deleted ones for websocket handler
+export const allReactionsForAllMessagesQuery = () =>
+	evoluInstance.createQuery((db) =>
+		db
+			.selectFrom("reaction")
+			.select([
+				"id",
+				"reaction",
+				"createdBy",
+				"updatedAt",
+				"isDeleted",
+				"messageId",
+			])
+			.$narrowType<{ reaction: kysely.NotNull }>(),
+	);
+export type AllReactionsForAllMessagesRow = ReturnType<
+	typeof allReactionsForAllMessagesQuery
+>["Row"];

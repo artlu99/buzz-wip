@@ -1,9 +1,13 @@
+import { availableReactions, reactionTypeData } from "../lib/reactions";
+
 export const AvailableReactions = () => {
-  return (
-    <div>
-      <i className="ph-bold ph-cube text-info" />
-      <i className="ph-bold ph-heart text-error" />
-      <i className="ph-bold ph-smiley text-warning" />
-    </div>
-  );
+	return availableReactions.map((reaction) => (
+		<button
+			key={reaction}
+			type="button"
+			className={`btn btn-xs btn-circle btn-ghost text-lg ${reactionTypeData(reaction).color}`}
+		>
+			<i className={reactionTypeData(reaction).icon} />
+		</button>
+	));
 };
