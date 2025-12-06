@@ -1,4 +1,5 @@
 import { EvoluProvider } from "@evolu/react";
+import { debounce } from "radash";
 import { Suspense, useEffect } from "react";
 import { Link, Route } from "wouter";
 import { AuthActions } from "./components/AuthActions";
@@ -19,7 +20,8 @@ import { useSocket } from "./providers/SocketProvider";
 
 function App() {
 	const socketClient = useSocket();
-	const { displayName, setDisplayName } = useZustand();
+	const { channelName, displayName, setChannelName, setDisplayName } =
+		useZustand();
 
 	useEffect(() => {
 		const getAppOwner = async () => {
@@ -78,6 +80,11 @@ function App() {
 		};
 	}, [displayName, socketClient]);
 
+	const handleChannelChange = debounce(
+		{ delay: 500 },
+		(channelName: string) => setChannelName(channelName),
+	);
+
 	return (
 		<div className="">
 			<Suspense fallback={<div>Initiating...</div>}>
@@ -87,9 +94,19 @@ function App() {
 							<h1 className="w-full text-center text-xl font-semibold text-gray-900">
 								<Link href="/">Buzz | artlu99</Link>
 							</h1>
-							<p className="text-sm text-gray-500">
-								<Link href="/db">{displayName}</Link>
-							</p>
+							<div className="flex flex-col items-center gap-2">
+								<p className="text-sm text-gray-500">
+									<input
+										className="input input-ghost"
+										type="text"
+										value={channelName}
+										onChange={(e) => handleChannelChange(e.target.value)}
+									/>
+								</p>
+								<p className="text-sm text-gray-500">
+									<Link href="/db">{displayName}</Link>
+								</p>
+							</div>
 						</div>
 
 						<EvoluProvider value={evoluInstance}>

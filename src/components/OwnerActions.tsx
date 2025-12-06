@@ -1,6 +1,6 @@
 import { Mnemonic } from "@evolu/common";
 import { localAuth } from "@evolu/react-web";
-import { type FC, use, useState } from "react";
+import { type FC, use, useEffect, useState } from "react";
 import { formatTypeError } from "../lib/helpers";
 import { service, useEvolu } from "../lib/local-first";
 import { OwnerProfile } from "./OwnerProfile";
@@ -8,13 +8,15 @@ import { OwnerProfile } from "./OwnerProfile";
 export const OwnerActions: FC = () => {
 	const evolu = useEvolu();
 	const appOwner = use(evolu.appOwner);
-	const username = use(
-		localAuth.getOwner({ service }).then((result) => {
-			return result?.username;
-		}),
-	);
 
+	const [username, setUsername] = useState<string | undefined>(undefined);
 	const [showMnemonic, setShowMnemonic] = useState(false);
+
+	useEffect(() => {
+		localAuth.getOwner({ service }).then((result) => {
+			setUsername(result?.username);
+		});
+	}, []);
 
 	// Restore owner from mnemonic to sync data across devices.
 	const handleRestoreAppOwnerClick = () => {

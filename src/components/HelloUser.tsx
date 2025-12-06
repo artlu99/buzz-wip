@@ -1,6 +1,7 @@
 import type { OwnerId } from "@evolu/common";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { useEffect, useState } from "react";
+import { chosenIdenticonStyle } from "../lib/helpers";
 import {
 	type DoorbellMessage,
 	DoorbellType,
@@ -9,7 +10,6 @@ import {
 	WsMessageType,
 } from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
-import { chosenIdenticonStyle } from "../lib/helpers";
 
 export const HelloUser = () => {
 	const [hello, setHello] = useState<WsMessage | null>(null);

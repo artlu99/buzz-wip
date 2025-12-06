@@ -223,9 +223,16 @@ export class TypedWsClient {
 	}
 
 	public destroy() {
+		// Clear the cleanup interval
 		if (this.cleanupInterval !== null) {
 			window.clearInterval(this.cleanupInterval);
+			this.cleanupInterval = null;
 		}
+		// Clear seen messages
 		this.seenMessages.clear();
+		// Close the socket connection if it has a close method
+		if (this.socket && typeof (this.socket as any).close === "function") {
+			(this.socket as any).close();
+		}
 	}
 }

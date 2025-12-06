@@ -19,7 +19,7 @@ export const Bubbles = () => {
 
 	const messagesQueryResult = useQuery(messagesQuery());
 
-	const handleDelete = (item: typeof messagesQueryResult[0]) => {
+	const handleDelete = (item: (typeof messagesQueryResult)[0]) => {
 		// Soft delete the message in local database
 		update("message", {
 			id: item.id,
@@ -27,10 +27,11 @@ export const Bubbles = () => {
 		});
 
 		// Send DELETE message over websocket
+		const ownerId = item.createdBy as OwnerId;
 		const deleteMessage: DeleteMessage = {
 			uuid: displayName,
 			type: WsMessageType.DELETE,
-			messageCreatedBy: item.createdBy,
+			messageCreatedBy: ownerId,
 			messageContent: item.content,
 			createdBy: displayName,
 		};
@@ -93,6 +94,7 @@ export const Bubbles = () => {
 					)}
 					{isMine && (
 						<button
+							type="button"
 							onClick={() => handleDelete(item)}
 							className="btn btn-ghost btn-xs opacity-50 hover:opacity-100"
 							title="Delete message"
