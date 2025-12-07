@@ -47,6 +47,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 					type: WsMessageType.DOORBELL,
 					uuid: displayName,
 					message: DoorbellType.CLOSE,
+					channelName: previousChannelNameRef.current,
 				});
 			} catch (err) {
 				// Socket might already be closed, which is fine
@@ -70,6 +71,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 						type: WsMessageType.DOORBELL,
 						uuid: displayName,
 						message: DoorbellType.CLOSE,
+						channelName: channelName,
 					});
 				} catch (err) {
 					// Socket might already be closed, which is fine

@@ -1,5 +1,9 @@
-import type { NonEmptyString100, OwnerId } from "@evolu/common";
-import { sqliteFalse, sqliteTrue } from "@evolu/common";
+import {
+	NonEmptyString100,
+	OwnerId,
+	sqliteFalse,
+	sqliteTrue,
+} from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useZustand } from "../hooks/use-zustand";
 import {
@@ -8,6 +12,7 @@ import {
 	reactionsQuery,
 	useEvolu,
 } from "../lib/local-first";
+import { safeSend } from "../lib/message-utils";
 import {
 	availableReactions,
 	type ReactionType,
@@ -19,20 +24,18 @@ import { WsMessageType } from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
 
 interface MessageReactionsProps {
-	messageId: MessageId;
-	messageCreatedBy: string;
-	messageContent: string;
+	messageId: MessageId; // Local database ID for querying reactions
+	networkMessageId: string; // Network message ID for sending reaction messages
 	isOwnMessage?: boolean;
 }
 export const MessageReactions = ({
 	messageId,
-	messageCreatedBy,
-	messageContent,
+	networkMessageId,
 	isOwnMessage = false,
 }: MessageReactionsProps) => {
-	const { displayName } = useZustand();
-	const { insert, update } = useEvolu();
 	const socketClient = useSocket();
+	const { insert, update } = useEvolu();
+	const { channelName, displayName } = useZustand();
 	const reactionsQueryResult = useQuery(reactionsQuery(messageId));
 	const allReactionsQueryResult = useQuery(allReactionsQuery(messageId));
 
@@ -42,8 +45,11 @@ export const MessageReactions = ({
 		id: reaction.id,
 	}));
 
-	const handleReaction = (messageId: MessageId, reaction: ReactionType) => {
-		const reactionString = reaction as NonEmptyString100;
+	const handleReaction = async (
+		messageId: MessageId,
+		reaction: ReactionType,
+	) => {
+		const reactionString = NonEmptyString100.orThrow(reaction);
 		const myReaction = reactions.find(
 			(r) => r.by === displayName && r.reaction === reaction,
 		);
@@ -75,26 +81,23 @@ export const MessageReactions = ({
 				insert("reaction", {
 					messageId: messageId,
 					reaction: reactionString,
-					createdBy: displayName as OwnerId,
+					channelName: channelName,
+					createdBy: OwnerId.orThrow(displayName),
 				});
 			}
 		}
 
-		// Send websocket message (timestamp comes from envelope e.date)
+		// Send websocket message using networkMessageId for matching across distributed stores
 		const reactionMessage: ReactionMessage = {
 			uuid: displayName,
 			type: WsMessageType.REACTION,
-			messageCreatedBy: messageCreatedBy,
-			messageContent: messageContent,
+			networkMessageId: networkMessageId,
 			reaction: reactionString,
+			channelName: channelName,
 			createdBy: displayName,
 			isDeleted: isDeleted,
 		};
-		try {
-			socketClient.send(reactionMessage);
-		} catch (err) {
-			console.error("Failed to send reaction message", err);
-		}
+		safeSend(socketClient, reactionMessage, "Failed to send reaction message");
 	};
 
 	const totalReactionCount = reactions.length;

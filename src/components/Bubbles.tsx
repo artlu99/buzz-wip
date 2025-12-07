@@ -1,11 +1,16 @@
-import type { OwnerId } from "@evolu/common";
-import { sqliteTrue } from "@evolu/common";
+import { NonEmptyString100, OwnerId, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { alphabetical, unique } from "radash";
+import invariant from "tiny-invariant";
 import { useZustand } from "../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../lib/helpers";
-import { messagesQuery, useEvolu } from "../lib/local-first";
+import {
+	allReactionsForChannelQuery,
+	messagesForChannelQuery,
+	useEvolu,
+} from "../lib/local-first";
+import { safeSend } from "../lib/message-utils";
 import type { DeleteMessage } from "../lib/sockets";
 import { WsMessageType } from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
@@ -13,47 +18,55 @@ import { ClickableDateSpan } from "./ClickableDateSpan";
 import { MessageReactions } from "./MessageReactions";
 
 export const Bubbles = () => {
-	const { displayName } = useZustand();
+	const { displayName, channelName } = useZustand();
 	const { update } = useEvolu();
 	const socketClient = useSocket();
 
-	const messagesQueryResult = useQuery(messagesQuery());
+	const messagesQueryResult = useQuery(messagesForChannelQuery(channelName));
+	const reactionsQueryResult = useQuery(
+		allReactionsForChannelQuery(
+			NonEmptyString100.orThrow(channelName.slice(0, 100)),
+		),
+	);
 
-	const handleDelete = (item: (typeof messagesQueryResult)[0]) => {
+	const handleDelete = async (item: (typeof messagesQueryResult)[0]) => {
 		// Soft delete the message in local database
 		update("message", {
 			id: item.id,
 			isDeleted: sqliteTrue,
 		});
+		// Soft delete the reactions
+		(reactionsQueryResult ?? []).forEach((reaction) => {
+			if (reaction.messageId !== item.id) return;
+			update("reaction", {
+				id: reaction.id,
+				isDeleted: sqliteTrue,
+			});
+		});
 
-		// Send DELETE message over websocket
-		const ownerId = item.createdBy as OwnerId;
 		const deleteMessage: DeleteMessage = {
 			uuid: displayName,
 			type: WsMessageType.DELETE,
-			messageCreatedBy: ownerId,
-			messageContent: item.content,
-			createdBy: displayName,
+			networkMessageId: item.networkMessageId,
+			channelName: item.channelName,
+			deletedBy: displayName,
 		};
-		try {
-			socketClient.send(deleteMessage);
-		} catch (err) {
-			console.error("Failed to send delete message", err);
-		}
+		safeSend(socketClient, deleteMessage, "Failed to send delete message");
 	};
 
 	const messages = alphabetical(
-		unique(messagesQueryResult, (m) => `${m.createdBy}-${m.createdAt}`),
+		unique(messagesQueryResult, (m) => m.networkMessageId),
 		(m) => m.createdAt,
 		"asc",
 	);
 
 	return messages.map((item, index) => {
+		invariant(item.createdBy, "Message createdBy is required");
 		const isMine = item.createdBy === displayName;
 		const isEven = index % 2 === 0;
 
 		const timestamp = new Date(item.createdAt).getTime();
-		const ownerId = item.createdBy as OwnerId;
+		const ownerId = OwnerId.orThrow(item.createdBy);
 		return ownerId ? (
 			<div
 				key={`${item.createdBy}-${new Date(item.createdAt).getTime()}`}
@@ -87,8 +100,7 @@ export const Bubbles = () => {
 					{item.createdBy && (
 						<MessageReactions
 							messageId={item.id}
-							messageCreatedBy={item.createdBy}
-							messageContent={item.content}
+							networkMessageId={item.networkMessageId}
 							isOwnMessage={isMine}
 						/>
 					)}

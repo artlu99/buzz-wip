@@ -1,3 +1,4 @@
+import { NonEmptyString100 } from "@evolu/common";
 import { EvoluProvider } from "@evolu/react";
 import { debounce } from "radash";
 import { Suspense, useEffect } from "react";
@@ -38,8 +39,9 @@ function App() {
 			type: WsMessageType.DOORBELL,
 			uuid: displayName,
 			message: DoorbellType.OPEN,
+			channelName: channelName,
 		});
-	}, [displayName, socketClient]);
+	}, [channelName, displayName, socketClient]);
 
 	// Send "bye" message when browser/tab closes
 	useEffect(() => {
@@ -49,6 +51,7 @@ function App() {
 					type: WsMessageType.DOORBELL,
 					uuid: displayName,
 					message: DoorbellType.CLOSE,
+					channelName: channelName,
 				});
 			} catch (err) {
 				// Socket might already be closed, which is fine
@@ -64,6 +67,7 @@ function App() {
 						type: WsMessageType.DOORBELL,
 						uuid: displayName,
 						message: DoorbellType.CLOSE,
+						channelName: channelName,
 					});
 				} catch (err) {
 					console.log("Could not send bye message on visibility change:", err);
@@ -78,11 +82,14 @@ function App() {
 			window.removeEventListener("beforeunload", handleBeforeUnload);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 		};
-	}, [displayName, socketClient]);
+	}, [channelName, displayName, socketClient]);
 
 	const handleChannelChange = debounce(
 		{ delay: 500 },
-		(channelName: string) => setChannelName(channelName),
+		(channelName: string) => {
+			if (channelName.length === 0) return;
+			setChannelName(NonEmptyString100.orThrow(channelName.slice(0, 100)));
+		},
 	);
 
 	return (

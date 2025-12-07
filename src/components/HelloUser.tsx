@@ -1,7 +1,4 @@
-import type { OwnerId } from "@evolu/common";
-import { EvoluIdenticon } from "@evolu/react-web";
 import { useEffect, useState } from "react";
-import { chosenIdenticonStyle } from "../lib/helpers";
 import {
 	type DoorbellMessage,
 	DoorbellType,
@@ -31,7 +28,7 @@ export const HelloUser = () => {
 	}, [socketClient]);
 
 	const payload = hello?.message as DoorbellMessage | undefined;
-	const uuid = payload?.uuid ?? "unknown";
+	const uuid = payload?.uuid;
 	const timestamp = new Date(hello?.date ?? 0).toLocaleDateString("en-US", {
 		year: "numeric",
 		month: "long",
@@ -40,17 +37,10 @@ export const HelloUser = () => {
 		minute: "2-digit",
 	});
 
-	return hello ? (
+	return uuid ? (
 		<div className="chat chat-start">
 			<div className="chat-header">
-				<div className="w-4 h-4 inline-block">
-					<EvoluIdenticon
-						id={uuid as OwnerId}
-						size={16}
-						style={chosenIdenticonStyle}
-					/>
-				</div>
-				entered the room
+				<span className="">{uuid} just entered the room...</span>
 			</div>
 			<div className="chat-footer opacity-50">{timestamp}</div>
 		</div>

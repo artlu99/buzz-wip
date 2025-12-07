@@ -1,15 +1,17 @@
 import { sqliteTrue } from "@evolu/common";
 import { useEvolu, useQuery } from "@evolu/react";
-import { messagesQuery } from "../lib/local-first";
+import { useZustand } from "../hooks/use-zustand";
+import { messagesForChannelQuery } from "../lib/local-first";
 
 export const ClearMessagesElement = () => {
-    const messages = useQuery(messagesQuery());
-    	const { update } = useEvolu();
+	const { channelName } = useZustand();
+	const messages = useQuery(messagesForChannelQuery(channelName));
+	const { update } = useEvolu();
 
-    const handleClearAll = () => {
+	const handleClearAll = () => {
 		if (
 			!window.confirm(
-				"Are you sure you want to clear all messages? This cannot be undone.",
+				`Are you sure you want to clear all messages in ${channelName}? This cannot be undone.`,
 			)
 		) {
 			return;
@@ -24,13 +26,15 @@ export const ClearMessagesElement = () => {
 		});
 	};
 
-	return messages.length > 0 ? <div className="mb-4 flex justify-end">
-					<button
-						type="button"
-						onClick={handleClearAll}
-						className="btn btn-sm btn-outline"
-					>
-						Clear All Messages
-					</button>
-				</div> : null;
+	return messages.length > 0 ? (
+		<div className="mb-4 flex justify-end">
+			<button
+				type="button"
+				onClick={handleClearAll}
+				className="btn btn-sm btn-outline"
+			>
+				Clear All Messages
+			</button>
+		</div>
+	) : null;
 };

@@ -1,10 +1,14 @@
-import type { NonEmptyString100, OwnerId } from "@evolu/common";
-import { sqliteFalse, sqliteTrue } from "@evolu/common";
+import {
+	NonEmptyString100,
+	OwnerId,
+	sqliteFalse,
+	sqliteTrue,
+} from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import { useZustand } from "../hooks/use-zustand";
 import {
-	allReactionsForAllMessagesQuery,
+	allReactionsForChannelQuery,
 	messagesQuery,
 	useEvolu,
 } from "../lib/local-first";
@@ -19,15 +23,18 @@ import { useSocket } from "../providers/SocketProvider";
 export const ReactionMessageHandler = () => {
 	const socketClient = useSocket();
 	const { insert, update } = useEvolu();
-	const { displayName } = useZustand();
-	const allReactions = useQuery(allReactionsForAllMessagesQuery());
+	const { channelName, displayName } = useZustand();
+	const allReactions = useQuery(
+		allReactionsForChannelQuery(
+			NonEmptyString100.orThrow(channelName.slice(0, 100)),
+		),
+	);
 	const allMessages = useQuery(messagesQuery());
 
 	// Use refs to ensure handler always reads latest values from Evolu
-	// Update refs synchronously on every render to ensure they're always current
 	const allReactionsRef = useRef(allReactions);
-	const allMessagesRef = useRef(allMessages);
 	allReactionsRef.current = allReactions;
+	const allMessagesRef = useRef(allMessages);
 	allMessagesRef.current = allMessages;
 
 	useEffect(() => {
@@ -36,22 +43,33 @@ export const ReactionMessageHandler = () => {
 
 			const payload: ReactionMessage = e.message;
 
-			if (payload.createdBy === displayName) return;
+			// Early return if not for current channel
+			if (payload.channelName !== channelName) {
+				return;
+			}
+
+			if (payload.createdBy === displayName) {
+				return;
+			}
 
 			// Always read latest values from Evolu via refs
-			const currentMessages = allMessagesRef.current ?? [];
 			const currentReactions = allReactionsRef.current ?? [];
+			const currentMessages = allMessagesRef.current ?? [];
 
+			// Find the message by networkMessageId to get the local message id
 			const localMessage = currentMessages.find(
-				(msg) =>
-					msg.createdBy === payload.messageCreatedBy &&
-					msg.content === payload.messageContent,
+				(msg) => msg.networkMessageId === payload.networkMessageId,
 			);
 
-			if (!localMessage) return;
+			if (!localMessage) {
+				console.warn("[REACTION] Message not found:", {
+					networkMessageId: payload.networkMessageId,
+					channelName: payload.channelName,
+				});
+				return;
+			}
 
-			// Find the reaction by matching all three criteria: messageId, createdBy, and reaction type
-			// Ensure string comparison by converting both to strings
+			// Find the reaction by matching all criteria: local messageId, createdBy, and reaction type
 			const existingReaction = currentReactions.find(
 				(r) =>
 					r.messageId === localMessage.id &&
@@ -77,15 +95,18 @@ export const ReactionMessageHandler = () => {
 				} else {
 					insert("reaction", {
 						messageId: localMessage.id,
-						reaction: payload.reaction as NonEmptyString100,
-						createdBy: payload.createdBy as OwnerId,
+						reaction: NonEmptyString100.orThrow(payload.reaction.slice(0, 100)),
+						channelName: NonEmptyString100.orThrow(
+							payload.channelName.slice(0, 100),
+						),
+						createdBy: OwnerId.orThrow(payload.createdBy),
 					});
 				}
 			}
 		};
 
 		socketClient.on(WsMessageType.REACTION, handler);
-	}, [socketClient, insert, update, displayName]);
+	}, [socketClient, insert, update, displayName, channelName]);
 
 	return null;
 };

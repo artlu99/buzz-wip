@@ -1,6 +1,7 @@
-import type { OwnerId } from "@evolu/common";
+import { OwnerId } from "@evolu/common";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { useEffect, useState } from "react";
+import { chosenIdenticonStyle } from "../lib/helpers";
 import {
 	isTypingIndicatorWsMessage,
 	TypingIndicatorType,
@@ -9,7 +10,7 @@ import {
 	WsMessageType,
 } from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
-import { chosenIdenticonStyle } from "../lib/helpers";
+import invariant from "tiny-invariant";
 
 const STALE_TIME = 5000; // 5 seconds
 
@@ -47,24 +48,31 @@ export const TypingIndicators = () => {
 	}, [socketClient]);
 
 	return typingIndicators
-		.filter((item) => item.message.presence === TypingIndicatorType.TYPING)
-		.map((indicator) => (
-			<div key={`${indicator.message.uuid}`} className="chat chat-start">
-				<div className="chat-header">
-					<div className="w-4 h-4 inline-block">
-						<EvoluIdenticon
-							id={indicator.message.uuid as OwnerId}
-							size={16}
-							style={chosenIdenticonStyle}
-						/>
+		.filter(
+			(item) =>
+				item.message.uuid &&
+				item.message.presence === TypingIndicatorType.TYPING,
+		)
+		.map((indicator) => {
+			invariant(indicator.message.uuid, "Typing indicator must have a uuid");
+			return (
+				<div key={`${indicator.message.uuid}`} className="chat chat-start">
+					<div className="chat-header">
+						<div className="w-4 h-4 inline-block">
+							<EvoluIdenticon
+								id={OwnerId.orThrow(indicator.message.uuid)}
+								size={16}
+								style={chosenIdenticonStyle}
+							/>
+						</div>
+						started typing...
 					</div>
-					started typing...
+					<div className="chat-footer opacity-50">
+						<time className="text-xs ml-2">
+							{new Date(indicator.date).toLocaleTimeString()}
+						</time>
+					</div>
 				</div>
-				<div className="chat-footer opacity-50">
-					<time className="text-xs ml-2">
-						{new Date(indicator.date).toLocaleTimeString()}
-					</time>
-				</div>
-			</div>
-		));
+			);
+		});
 };

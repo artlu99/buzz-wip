@@ -6,6 +6,7 @@ export const AvailableReactions = () => {
 			key={reaction}
 			type="button"
 			className={`btn btn-xs btn-circle btn-ghost text-lg ${reactionTypeData(reaction).color}`}
+			disabled={true}
 		>
 			<i className={reactionTypeData(reaction).icon} />
 		</button>
