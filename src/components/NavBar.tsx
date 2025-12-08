@@ -2,7 +2,7 @@ export const NavBar = () => {
 	return (
 		<div className="flex justify-end gap-2">
 			<a
-				href="https://github.com/artlu99"
+				href="https://github.com/artlu99/buzz-wip"
 				target="_blank"
 				rel="noopener noreferrer"
 			>
