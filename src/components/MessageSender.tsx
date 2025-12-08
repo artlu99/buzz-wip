@@ -24,6 +24,7 @@ export const MessageSender = () => {
 		};
 		const result = insert("message", {
 			content: content,
+			user: JSON.stringify(user),
 			channelName: channelName,
 			createdBy: uuid,
 			networkMessageId: createIdFromString(crypto.randomUUID()), // temporary, will be overridden next

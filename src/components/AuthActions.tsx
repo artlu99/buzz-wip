@@ -1,26 +1,33 @@
-import type { AuthList, OwnerId } from "@evolu/common";
+import type { AppOwner, AuthList, OwnerId } from "@evolu/common";
 import { localAuth } from "@evolu/react-web";
-import { type FC, use, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { service, useEvolu } from "../lib/local-first";
 import { OwnerProfile } from "./OwnerProfile";
 
-export const AuthActions: FC = () => {
+export const AuthActions = () => {
 	const evolu = useEvolu();
-	const appOwner = use(evolu.appOwner);
-
+	const [appOwner, setAppOwner] = useState<AppOwner | undefined>(undefined);
 	const [ownerIds, setOwnerIds] = useState<AuthList[]>([]);
 
 	useEffect(() => {
-		localAuth.getProfiles({ service }).then((result) => {
-			setOwnerIds(
-				result?.filter(({ ownerId }) => ownerId !== appOwner?.id) ?? [],
-			);
+		evolu.appOwner.then((result) => {
+			setAppOwner(result);
 		});
-	}, [appOwner?.id]);
+	}, [evolu]);
+
+	useEffect(() => {
+		if (appOwner) {
+			localAuth.getProfiles({ service }).then((result) => {
+				setOwnerIds(
+					result?.filter(({ ownerId }) => ownerId !== appOwner.id) ?? [],
+				);
+			});
+		}
+	}, [appOwner]);
 
 	const otherOwnerIds = useMemo(
 		() => ownerIds.filter(({ ownerId }) => ownerId !== appOwner?.id),
-		[ownerIds, appOwner?.id],
+		[ownerIds, appOwner],
 	);
 
 	// Create a new owner and register it to a passkey.

@@ -11,8 +11,11 @@ import {
 	useEvolu,
 } from "../lib/local-first";
 import { safeSend } from "../lib/message-utils";
-import type { DeleteMessage } from "../lib/sockets";
-import { WsMessageType } from "../lib/sockets";
+import {
+	type DeleteMessage,
+	UserMessageDataSchema,
+	WsMessageType,
+} from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
 import { ClickableDateSpan } from "./ClickableDateSpan";
 import { MessageReactions } from "./MessageReactions";
@@ -68,6 +71,15 @@ export const Bubbles = () => {
 
 		const timestamp = new Date(item.createdAt).getTime();
 		const ownerId = OwnerId.orThrow(item.createdBy);
+
+		const validator = UserMessageDataSchema.safeParse(
+			JSON.parse(item.user ?? "{}"),
+		);
+		if (!validator.success) {
+			console.error("Failed to parse user data", validator.error);
+			return null;
+		}
+		const user = validator.data;
 		return ownerId ? (
 			<div
 				key={`${item.createdBy}-${new Date(item.createdAt).getTime()}`}
@@ -75,14 +87,22 @@ export const Bubbles = () => {
 			>
 				<div className="chat-image">
 					<div className="w-10 rounded-full">
-						<EvoluIdenticon
-							id={ownerId}
-							size={40}
-							style={chosenIdenticonStyle}
-						/>
+						{user.pfpUrl ? (
+							<img
+								src={user.pfpUrl}
+								alt="Profile"
+								className="w-10 rounded-full"
+							/>
+						) : (
+							<EvoluIdenticon
+								id={ownerId}
+								size={40}
+								style={chosenIdenticonStyle}
+							/>
+						)}
 					</div>
 				</div>
-				<div className="chat-header">{item.createdBy}</div>
+				<div className="chat-header">{user.displayName ?? item.createdBy}</div>
 				<div
 					className={`chat-bubble ${
 						isMine

@@ -1,25 +1,32 @@
 import { NonEmptyString100, type OwnerId } from "@evolu/common";
 import { create } from "zustand";
-import { UserId } from "../lib/local-first";
+import { combine, createJSONStorage, persist } from "zustand/middleware";
+import type { UserMessageData } from "../lib/sockets";
 
-export const useZustand = create<{
-	channelName: NonEmptyString100;
-	setChannelName: (channelName: NonEmptyString100) => void;
-	user: { id: UserId; displayName: string; pfpUrl: string; bio: string };
-	setUser: (uuid: UserId, displayName: string) => void;
-	uuid: OwnerId | undefined;
-	setUuid: (uuid: OwnerId | undefined) => void;
-}>((set) => ({
+export const useZustand = create(persist(combine({
 	channelName: NonEmptyString100.orThrow("buzz-543212345"),
-	setChannelName: (channelName: NonEmptyString100) => set({ channelName }),
 	user: {
-		id: UserId.orThrow("anonymous-bee"),
-		displayName: "Anonymous Bee",
+		displayName: "Anonymous Bee 🐝",
 		pfpUrl: "",
 		bio: "",
-	},
-	setUser: (uuid: UserId, displayName: string) =>
-		set({ user: { id: uuid, displayName, pfpUrl: "", bio: "" } }),
-	uuid: undefined,
-	setUuid: (uuid: OwnerId | undefined) => set({ uuid }),
-}));
+	} as UserMessageData,
+	uuid: undefined as OwnerId | undefined
+}, (set) => (
+	{
+		setChannelName: (channelName: NonEmptyString100) => set({ channelName }),
+		setUser: (
+			displayName: string,
+			pfpUrl: string = "",
+			bio: string = "",
+		) => set(
+			{ user: { displayName, pfpUrl, bio } }
+		),
+		setUuid: (uuid: OwnerId | undefined) => set(
+			{ uuid }
+		),
+	}
+)),
+	{
+		name: "buzz-store", storage: createJSONStorage(() => localStorage),
+	}
+))

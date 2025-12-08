@@ -1,22 +1,26 @@
-import { Mnemonic } from "@evolu/common";
+import { type AppOwner, Mnemonic } from "@evolu/common";
 import { localAuth } from "@evolu/react-web";
-import { type FC, use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { formatTypeError } from "../lib/helpers";
 import { service, useEvolu } from "../lib/local-first";
 import { OwnerProfile } from "./OwnerProfile";
 
-export const OwnerActions: FC = () => {
+export const OwnerActions = () => {
 	const evolu = useEvolu();
-	const appOwner = use(evolu.appOwner);
 
+	const [appOwner, setAppOwner] = useState<AppOwner | undefined>(undefined);
 	const [username, setUsername] = useState<string | undefined>(undefined);
 	const [showMnemonic, setShowMnemonic] = useState(false);
 
 	useEffect(() => {
+		evolu.appOwner.then((result) => {
+			setAppOwner(result);
+		});
+
 		localAuth.getOwner({ service }).then((result) => {
 			setUsername(result?.username);
 		});
-	}, []);
+	}, [evolu]);
 
 	// Restore owner from mnemonic to sync data across devices.
 	const handleRestoreAppOwnerClick = () => {
@@ -52,13 +56,13 @@ export const OwnerActions: FC = () => {
 
 	return (
 		<div className="mt-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-200">
-			<h2 className="mb-4 text-lg font-medium text-gray-900">Account</h2>
+			<h2 className="mb-4 text-lg font-medium text-gray-900">Owner</h2>
 			{appOwner && (
 				<div className="mb-4 flex items-center justify-between gap-3">
 					<OwnerProfile
 						{...{
 							ownerId: appOwner.id,
-							username: username ?? "Guest",
+							username: username ?? "<no username>",
 						}}
 					/>
 				</div>
@@ -77,7 +81,7 @@ export const OwnerActions: FC = () => {
 					}}
 				>{`${showMnemonic ? "Hide" : "Show"} Mnemonic`}</button>
 
-				{showMnemonic && appOwner.mnemonic && (
+				{showMnemonic && appOwner?.mnemonic && (
 					<div className="bg-gray-50 p-3">
 						<label
 							htmlFor="mnemonic"
