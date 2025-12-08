@@ -1,4 +1,4 @@
-import { createIdFromString, OwnerId } from "@evolu/common";
+import { createIdFromString } from "@evolu/common";
 import { useZustand } from "../hooks/use-zustand";
 import { useEvolu } from "../lib/local-first";
 import { safeSend } from "../lib/message-utils";
@@ -13,15 +13,19 @@ import { TextEntry } from "./TextEntry";
 
 export const MessageSender = () => {
 	const { insert, update } = useEvolu();
-	const { channelName, displayName } = useZustand();
+	const { channelName, user, uuid } = useZustand();
 	const socketClient = useSocket();
 
 	const handleSend = (content: string) => {
 		// Insert our own message into the database immediately
+		if (!uuid)  {
+			console.error("Unable to send message, uuid is not set");
+			return;
+		};
 		const result = insert("message", {
 			content: content,
 			channelName: channelName,
-			createdBy: OwnerId.orThrow(displayName),
+			createdBy: uuid,
 			networkMessageId: createIdFromString(crypto.randomUUID()), // temporary, will be overridden next
 		});
 		if (!result.ok) {
@@ -33,7 +37,7 @@ export const MessageSender = () => {
 
 		// Send STOP_TYPING indicator
 		const stopTypingMessage: TypingIndicatorMessage = {
-			uuid: displayName,
+			uuid: uuid,
 			type: WsMessageType.STATUS,
 			presence: TypingIndicatorType.STOP_TYPING,
 			channelName: channelName,
@@ -47,11 +51,11 @@ export const MessageSender = () => {
 		// Send the TEXT message over websocket
 		// Note: timestamp comes from envelope (e.date), not from payload
 		const textMessage: TextMessage = {
-			uuid: displayName,
+			uuid: uuid,
 			type: WsMessageType.TEXT,
 			content: content,
+			user: user,
 			channelName: channelName,
-			createdBy: displayName,
 			encrypted: false,
 			networkMessageId: networkMessageId,
 		};
@@ -60,7 +64,7 @@ export const MessageSender = () => {
 
 	const handleTyping = () => {
 		const message: TypingIndicatorMessage = {
-			uuid: displayName,
+			uuid: uuid,
 			type: WsMessageType.STATUS,
 			presence: TypingIndicatorType.TYPING,
 			channelName: channelName,
@@ -70,7 +74,7 @@ export const MessageSender = () => {
 
 	const handleStopTyping = () => {
 		const message: TypingIndicatorMessage = {
-			uuid: displayName,
+			uuid: uuid,
 			type: WsMessageType.STATUS,
 			presence: TypingIndicatorType.STOP_TYPING,
 			channelName: channelName,

@@ -7,16 +7,27 @@ import {
 	OwnerId,
 	SimpleName,
 	sqliteTrue,
+	String100,
+	String1000,
 } from "@evolu/common";
 import { createUseEvolu } from "@evolu/react";
 import { evoluReactWebDeps, localAuth } from "@evolu/react-web";
 
+export const UserId = id("User");
+export type UserId = typeof UserId.Type;
 export const MessageId = id("Message");
 export type MessageId = typeof MessageId.Type;
 export const ReactionId = id("Reaction");
 export type ReactionId = typeof ReactionId.Type;
 
 export const Schema = {
+	user: {
+		id: UserId,
+		networkUuid: NonEmptyString100,
+		displayName: String100,
+		pfpUrl: String1000,
+		bio: String1000,
+	},
 	message: {
 		id: MessageId,
 		content: NonEmptyString1000,
@@ -76,6 +87,16 @@ export const useEvolu = createUseEvolu(evoluInstance);
 // (even if defined without nullOr in the schema) to allow schema
 // evolution without migrations. Filter nulls with where + $narrowType.
 
+export const usersQuery = (networkUuid: NonEmptyString100) =>
+	evoluInstance.createQuery((db) =>
+		db
+			.selectFrom("user")
+			.select(["id", "displayName", "pfpUrl", "bio"])
+			.where("networkUuid", "is", networkUuid)
+			.where("isDeleted", "is not", sqliteTrue)
+			.$narrowType<{ displayName: kysely.NotNull; pfpUrl: kysely.NotNull; bio: kysely.NotNull }>(),
+	);
+	
 export const messagesQuery = (ownerId?: OwnerId) =>
 	evoluInstance.createQuery((db) =>
 		ownerId

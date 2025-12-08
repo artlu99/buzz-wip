@@ -5,7 +5,7 @@ import { DoorbellType, TypedWsClient, WsMessageType } from "../lib/sockets";
 const SocketContext = createContext<TypedWsClient | null>(null);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-	const { channelName, displayName } = useZustand();
+	const { channelName, uuid } = useZustand();
 	// Create socket client synchronously on initial mount if in browser
 	const [socketClient, setSocketClient] = useState<TypedWsClient | null>(() => {
 		if (typeof window === "undefined" || typeof document === "undefined") {
@@ -41,11 +41,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 		}
 
 		// Send bye message to previous channel before switching
-		if (previousClientRef.current && displayName) {
+		if (previousClientRef.current && uuid) {
 			try {
 				previousClientRef.current.send({
 					type: WsMessageType.DOORBELL,
-					uuid: displayName,
+					uuid: uuid,
 					message: DoorbellType.CLOSE,
 					channelName: previousChannelNameRef.current,
 				});
@@ -65,11 +65,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
 		// Cleanup: send bye message and destroy the socket client when component unmounts
 		return () => {
-			if (client && displayName) {
+			if (client && uuid) {
 				try {
 					client.send({
 						type: WsMessageType.DOORBELL,
-						uuid: displayName,
+						uuid: uuid,
 						message: DoorbellType.CLOSE,
 						channelName: channelName,
 					});
@@ -80,7 +80,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 			}
 			client.destroy();
 		};
-	}, [channelName, displayName]);
+	}, [channelName, uuid]);
 
 	// Always provide the context, even if socketClient is null (for SSR)
 	return (

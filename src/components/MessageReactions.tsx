@@ -1,6 +1,5 @@
 import {
 	NonEmptyString100,
-	OwnerId,
 	sqliteFalse,
 	sqliteTrue,
 } from "@evolu/common";
@@ -35,9 +34,14 @@ export const MessageReactions = ({
 }: MessageReactionsProps) => {
 	const socketClient = useSocket();
 	const { insert, update } = useEvolu();
-	const { channelName, displayName } = useZustand();
+	const { channelName, uuid } = useZustand();
 	const reactionsQueryResult = useQuery(reactionsQuery(messageId));
 	const allReactionsQueryResult = useQuery(allReactionsQuery(messageId));
+
+	if (!uuid) {
+		console.error("Unable to react, uuid is not set");
+		return;
+	}
 
 	const reactions = (reactionsQueryResult ?? []).map((reaction) => ({
 		reaction: reactionTypeToEnum(reaction.reaction),
@@ -51,13 +55,13 @@ export const MessageReactions = ({
 	) => {
 		const reactionString = NonEmptyString100.orThrow(reaction);
 		const myReaction = reactions.find(
-			(r) => r.by === displayName && r.reaction === reaction,
+			(r) => r.by === uuid && r.reaction === reaction,
 		);
 
 		// Check for existing reaction (including deleted ones) for upsert
 		const existingReaction = (allReactionsQueryResult ?? []).find(
 			(r) =>
-				r.createdBy === displayName &&
+				r.createdBy === uuid &&
 				r.reaction === reactionString &&
 				r.isDeleted === sqliteTrue,
 		);
@@ -82,19 +86,18 @@ export const MessageReactions = ({
 					messageId: messageId,
 					reaction: reactionString,
 					channelName: channelName,
-					createdBy: OwnerId.orThrow(displayName),
+					createdBy: uuid,
 				});
 			}
 		}
 
 		// Send websocket message using networkMessageId for matching across distributed stores
 		const reactionMessage: ReactionMessage = {
-			uuid: displayName,
+			uuid: uuid,
 			type: WsMessageType.REACTION,
 			networkMessageId: networkMessageId,
 			reaction: reactionString,
 			channelName: channelName,
-			createdBy: displayName,
 			isDeleted: isDeleted,
 		};
 		safeSend(socketClient, reactionMessage, "Failed to send reaction message");
@@ -110,7 +113,7 @@ export const MessageReactions = ({
 						(r) => r.reaction === reaction,
 					).length;
 					const haveIReacted = reactions.some(
-						(r) => r.by === displayName && r.reaction === reaction,
+						(r) => r.by === uuid && r.reaction === reaction,
 					);
 					const iconData = reactionTypeData(reaction);
 					const iconClass = haveIReacted ? iconData.filledIcon : iconData.icon;

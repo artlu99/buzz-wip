@@ -58,10 +58,20 @@ export const DeleteMessageHandler = () => {
 			}
 
 			// Only allow deletion by the original sender (security check)
-			if (messages.some((msg) => msg.createdBy !== payload.deletedBy)) {
+			if (messages.some((msg) => msg.createdBy !== payload.uuid)) {
 				console.warn("[DELETE] Unauthorized delete attempt:", {
 					networkMessageId: payload.networkMessageId,
-					deleteAttemptBy: payload.deletedBy,
+					deleteAttemptBy: payload.uuid,
+				});
+				return;
+			}
+
+			// verify the signature
+			if (payload.signature !== null) {
+				// TODO: Implement signature verification
+				console.warn("[DELETE] Signature verification failed:", {
+					networkMessageId: payload.networkMessageId,
+					signature: payload.signature,
 				});
 				return;
 			}

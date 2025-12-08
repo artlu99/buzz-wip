@@ -12,44 +12,48 @@ import { HelloUser } from "./components/HelloUser";
 import { MessageSender } from "./components/MessageSender";
 import { OwnerActions } from "./components/OwnerActions";
 import { ReactionMessageHandler } from "./components/ReactionMessageHandler";
+import { RefreshMessageHandler } from "./components/RefreshMessageHandler";
 import { TextMessageHandler } from "./components/TextMessageHandler";
 import { TypingIndicators } from "./components/TypingIndicators";
 import { useZustand } from "./hooks/use-zustand";
-import { evoluInstance } from "./lib/local-first";
+import { evoluInstance, UserId } from "./lib/local-first";
 import { DoorbellType, WsMessageType } from "./lib/sockets";
 import { useSocket } from "./providers/SocketProvider";
 
 function App() {
 	const socketClient = useSocket();
-	const { channelName, displayName, setChannelName, setDisplayName } =
+	const { channelName, user, uuid, setChannelName, setUser, setUuid } =
 		useZustand();
 
 	useEffect(() => {
 		const getAppOwner = async () => {
 			const appOwner = await evoluInstance.appOwner;
 			if (appOwner) {
-				setDisplayName(appOwner.id.toString());
+				setUuid(appOwner.id);
+				setUser(UserId.orThrow(appOwner.id), appOwner.id.toString());
 			}
 		};
 		getAppOwner();
-	}, [setDisplayName]);
+	}, [setUser, setUuid]);
 
 	useEffect(() => {
+		if (!uuid) return;
 		socketClient.send({
 			type: WsMessageType.DOORBELL,
-			uuid: displayName,
+			uuid: uuid,
 			message: DoorbellType.OPEN,
 			channelName: channelName,
 		});
-	}, [channelName, displayName, socketClient]);
+	}, [channelName, uuid, socketClient]);
 
 	// Send "bye" message when browser/tab closes
 	useEffect(() => {
+		if (!uuid) return;
 		const handleBeforeUnload = () => {
 			try {
 				socketClient.send({
 					type: WsMessageType.DOORBELL,
-					uuid: displayName,
+					uuid: uuid,
 					message: DoorbellType.CLOSE,
 					channelName: channelName,
 				});
@@ -65,7 +69,7 @@ function App() {
 				try {
 					socketClient.send({
 						type: WsMessageType.DOORBELL,
-						uuid: displayName,
+						uuid: uuid,
 						message: DoorbellType.CLOSE,
 						channelName: channelName,
 					});
@@ -82,7 +86,7 @@ function App() {
 			window.removeEventListener("beforeunload", handleBeforeUnload);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 		};
-	}, [channelName, displayName, socketClient]);
+	}, [channelName, uuid, socketClient]);
 
 	const handleChannelChange = debounce(
 		{ delay: 500 },
@@ -111,7 +115,7 @@ function App() {
 									/>
 								</p>
 								<p className="text-sm text-gray-500">
-									<Link href="/db">{displayName}</Link>
+									<Link href="/db">{user?.displayName ?? "Anonymous Bee"}</Link>
 								</p>
 							</div>
 						</div>
@@ -120,6 +124,7 @@ function App() {
 							<TextMessageHandler />
 							<ReactionMessageHandler />
 							<DeleteMessageHandler />
+							<RefreshMessageHandler />
 							<Suspense>
 								<Route path="/">
 									<ClearMessagesElement />

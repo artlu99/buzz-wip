@@ -1,9 +1,4 @@
-import {
-	NonEmptyString100,
-	OwnerId,
-	sqliteFalse,
-	sqliteTrue,
-} from "@evolu/common";
+import { NonEmptyString100, sqliteFalse, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import { useZustand } from "../hooks/use-zustand";
@@ -23,12 +18,8 @@ import { useSocket } from "../providers/SocketProvider";
 export const ReactionMessageHandler = () => {
 	const socketClient = useSocket();
 	const { insert, update } = useEvolu();
-	const { channelName, displayName } = useZustand();
-	const allReactions = useQuery(
-		allReactionsForChannelQuery(
-			NonEmptyString100.orThrow(channelName.slice(0, 100)),
-		),
-	);
+	const { channelName, uuid } = useZustand();
+	const allReactions = useQuery(allReactionsForChannelQuery(channelName));
 	const allMessages = useQuery(messagesQuery());
 
 	// Use refs to ensure handler always reads latest values from Evolu
@@ -48,7 +39,7 @@ export const ReactionMessageHandler = () => {
 				return;
 			}
 
-			if (payload.createdBy === displayName) {
+			if (payload.uuid === uuid) {
 				return;
 			}
 
@@ -73,7 +64,7 @@ export const ReactionMessageHandler = () => {
 			const existingReaction = currentReactions.find(
 				(r) =>
 					r.messageId === localMessage.id &&
-					r.createdBy === payload.createdBy &&
+					r.createdBy === payload.uuid &&
 					String(r.reaction) === String(payload.reaction),
 			);
 
@@ -99,14 +90,14 @@ export const ReactionMessageHandler = () => {
 						channelName: NonEmptyString100.orThrow(
 							payload.channelName.slice(0, 100),
 						),
-						createdBy: OwnerId.orThrow(payload.createdBy),
+						createdBy: payload.uuid,
 					});
 				}
 			}
 		};
 
 		socketClient.on(WsMessageType.REACTION, handler);
-	}, [socketClient, insert, update, displayName, channelName]);
+	}, [socketClient, insert, update, uuid, channelName]);
 
 	return null;
 };

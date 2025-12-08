@@ -18,7 +18,7 @@ import { ClickableDateSpan } from "./ClickableDateSpan";
 import { MessageReactions } from "./MessageReactions";
 
 export const Bubbles = () => {
-	const { displayName, channelName } = useZustand();
+	const { uuid, channelName } = useZustand();
 	const { update } = useEvolu();
 	const socketClient = useSocket();
 
@@ -45,12 +45,13 @@ export const Bubbles = () => {
 		});
 
 		const deleteMessage: DeleteMessage = {
-			uuid: displayName,
+			uuid: uuid,
 			type: WsMessageType.DELETE,
 			networkMessageId: item.networkMessageId,
 			channelName: item.channelName,
-			deletedBy: displayName,
+			signature: null,
 		};
+		console.log("deleteMessage", deleteMessage);
 		safeSend(socketClient, deleteMessage, "Failed to send delete message");
 	};
 
@@ -62,7 +63,7 @@ export const Bubbles = () => {
 
 	return messages.map((item, index) => {
 		invariant(item.createdBy, "Message createdBy is required");
-		const isMine = item.createdBy === displayName;
+		const isMine = item.createdBy === uuid;
 		const isEven = index % 2 === 0;
 
 		const timestamp = new Date(item.createdAt).getTime();
@@ -70,7 +71,7 @@ export const Bubbles = () => {
 		return ownerId ? (
 			<div
 				key={`${item.createdBy}-${new Date(item.createdAt).getTime()}`}
-				className={`chat ${item.createdBy === displayName ? "chat-end" : "chat-start"}`}
+				className={`chat ${item.createdBy === uuid ? "chat-end" : "chat-start"}`}
 			>
 				<div className="chat-image">
 					<div className="w-10 rounded-full">

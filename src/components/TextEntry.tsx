@@ -13,7 +13,7 @@ export const TextEntry = ({
   onSend,
 }: TextEntryProps) => {
   const [message, setMessage] = useState("");
-  const { displayName } = useZustand();
+  const { user } = useZustand();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value);
@@ -65,7 +65,7 @@ export const TextEntry = ({
       </div>
       <div className="flex flex-col gap-2 flex-1 w-full">
         <label htmlFor="text-entry" className="text-sm text-left text-base-content/70">
-          <span className="font-semibold">You are:</span> {displayName}
+          <span className="font-semibold">You are:</span> {user.displayName}
         </label>
       </div>
     </form>
