@@ -5,17 +5,17 @@ import { DoorbellType, TypedWsClient, WsMessageType } from "../lib/sockets";
 const SocketContext = createContext<TypedWsClient | null>(null);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-	const { channelName, uuid } = useZustand();
+	const { channelId, uuid } = useZustand();
 	// Create socket client synchronously on initial mount if in browser
 	const [socketClient, setSocketClient] = useState<TypedWsClient | null>(() => {
 		if (typeof window === "undefined" || typeof document === "undefined") {
 			return null;
 		}
-		return new TypedWsClient(channelName);
+		return new TypedWsClient(channelId);
 	});
 	const previousClientRef = useRef<TypedWsClient | null>(null);
 	const isInitialMountRef = useRef(true);
-	const previousChannelNameRef = useRef(channelName);
+	const previouschannelIdRef = useRef(channelId);
 
 	// Initialize previousClientRef with the initial socket client
 	if (isInitialMountRef.current && socketClient) {
@@ -31,12 +31,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 		// Skip if this is the initial mount (socket already created in useState)
 		if (isInitialMountRef.current) {
 			isInitialMountRef.current = false;
-			previousChannelNameRef.current = channelName;
+			previouschannelIdRef.current = channelId;
 			return;
 		}
 
-		// Only recreate socket if channelName actually changed
-		if (previousChannelNameRef.current === channelName) {
+		// Only recreate socket if channelId actually changed
+		if (previouschannelIdRef.current === channelId) {
 			return;
 		}
 
@@ -47,7 +47,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 					type: WsMessageType.DOORBELL,
 					uuid: uuid,
 					message: DoorbellType.CLOSE,
-					channelName: previousChannelNameRef.current,
+					channelId: previouschannelIdRef.current,
 				});
 			} catch (err) {
 				// Socket might already be closed, which is fine
@@ -58,10 +58,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 		}
 
 		// Create new socket client for the channel
-		const client = new TypedWsClient(channelName);
+		const client = new TypedWsClient(channelId);
 		setSocketClient(client);
 		previousClientRef.current = client;
-		previousChannelNameRef.current = channelName;
+		previouschannelIdRef.current = channelId;
 
 		// Cleanup: send bye message and destroy the socket client when component unmounts
 		return () => {
@@ -71,7 +71,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 						type: WsMessageType.DOORBELL,
 						uuid: uuid,
 						message: DoorbellType.CLOSE,
-						channelName: channelName,
+						channelId: channelId,
 					});
 				} catch (err) {
 					// Socket might already be closed, which is fine
@@ -80,7 +80,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 			}
 			client.destroy();
 		};
-	}, [channelName, uuid]);
+	}, [channelId, uuid]);
 
 	// Always provide the context, even if socketClient is null (for SSR)
 	return (

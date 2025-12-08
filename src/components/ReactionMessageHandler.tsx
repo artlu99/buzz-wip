@@ -18,8 +18,8 @@ import { useSocket } from "../providers/SocketProvider";
 export const ReactionMessageHandler = () => {
 	const socketClient = useSocket();
 	const { insert, update } = useEvolu();
-	const { channelName, uuid } = useZustand();
-	const allReactions = useQuery(allReactionsForChannelQuery(channelName));
+	const { channelId, uuid } = useZustand();
+	const allReactions = useQuery(allReactionsForChannelQuery(channelId));
 	const allMessages = useQuery(messagesQuery());
 
 	// Use refs to ensure handler always reads latest values from Evolu
@@ -35,7 +35,7 @@ export const ReactionMessageHandler = () => {
 			const payload: ReactionMessage = e.message;
 
 			// Early return if not for current channel
-			if (payload.channelName !== channelName) {
+			if (payload.channelId !== channelId) {
 				return;
 			}
 
@@ -55,7 +55,7 @@ export const ReactionMessageHandler = () => {
 			if (!localMessage) {
 				console.warn("[REACTION] Message not found:", {
 					networkMessageId: payload.networkMessageId,
-					channelName: payload.channelName,
+					channelId: payload.channelId,
 				});
 				return;
 			}
@@ -87,8 +87,8 @@ export const ReactionMessageHandler = () => {
 					insert("reaction", {
 						messageId: localMessage.id,
 						reaction: NonEmptyString100.orThrow(payload.reaction.slice(0, 100)),
-						channelName: NonEmptyString100.orThrow(
-							payload.channelName.slice(0, 100),
+						channelId: NonEmptyString100.orThrow(
+							payload.channelId.slice(0, 100),
 						),
 						createdBy: payload.uuid,
 					});
@@ -97,7 +97,7 @@ export const ReactionMessageHandler = () => {
 		};
 
 		socketClient.on(WsMessageType.REACTION, handler);
-	}, [socketClient, insert, update, uuid, channelName]);
+	}, [socketClient, insert, update, uuid, channelId]);
 
 	return null;
 };

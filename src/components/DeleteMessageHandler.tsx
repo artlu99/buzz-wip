@@ -43,16 +43,16 @@ export const DeleteMessageHandler = () => {
 			if (messages.length === 0) {
 				console.warn("[DELETE] Message not found:", {
 					networkMessageId: payload.networkMessageId,
-					channelName: payload.channelName,
+					channelId: payload.channelId,
 				});
 				return;
 			}
 
 			// Verify the message is in the correct channel (safety check)
-			if (messages.some((msg) => msg.channelName !== payload.channelName)) {
+			if (messages.some((msg) => msg.channelId !== payload.channelId)) {
 				console.warn("[DELETE] Channel mismatch:", {
 					networkMessageId: payload.networkMessageId,
-					payloadChannel: payload.channelName,
+					payloadChannel: payload.channelId,
 				});
 				return;
 			}

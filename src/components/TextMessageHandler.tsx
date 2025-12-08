@@ -22,9 +22,9 @@ import { useSocket } from "../providers/SocketProvider";
 export const TextMessageHandler = () => {
 	const socketClient = useSocket();
 	const { insert, upsert } = useEvolu();
-	const { channelName, uuid } = useZustand();
+	const { channelId, uuid } = useZustand();
 
-	const allMessages = useQuery(messagesForChannelQuery(channelName));
+	const allMessages = useQuery(messagesForChannelQuery(channelId));
 	const allMessagesRef = useRef(allMessages);
 	allMessagesRef.current = allMessages;
 
@@ -36,12 +36,17 @@ export const TextMessageHandler = () => {
 			const payload: TextMessage = e.message;
 			invariant(payload.uuid, "Text message has no uuid");
 
-			if (payload.channelName !== channelName) return;
+			if (payload.channelId !== channelId) return;
 			if (payload.uuid === uuid) return;
 
 			invariant(
 				payload.encrypted === false,
 				"Text messages must be unencrypted",
+			);
+
+			invariant(
+				typeof payload.content === "string",
+				"Content must be a string",
 			);
 
 			const networkMessageId = NonEmptyString100.orThrow(
@@ -62,8 +67,8 @@ export const TextMessageHandler = () => {
 			insert("message", {
 				content: NonEmptyString1000.orThrow(payload.content.slice(0, 1000)),
 				user: userItem,
-				channelName: NonEmptyString100.orThrow(
-					payload.channelName.slice(0, 100),
+				channelId: NonEmptyString100.orThrow(
+					payload.channelId.slice(0, 100),
 				),
 				createdBy: OwnerId.orThrow(payload.uuid),
 				networkMessageId: networkMessageId,
@@ -87,7 +92,7 @@ export const TextMessageHandler = () => {
 		};
 
 		socketClient.on(WsMessageType.TEXT, handler);
-	}, [socketClient, channelName, uuid, insert, upsert]);
+	}, [socketClient, channelId, uuid, insert, upsert]);
 
 	return null;
 };

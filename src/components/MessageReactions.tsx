@@ -1,8 +1,4 @@
-import {
-	NonEmptyString100,
-	sqliteFalse,
-	sqliteTrue,
-} from "@evolu/common";
+import { NonEmptyString100, sqliteFalse, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useZustand } from "../hooks/use-zustand";
 import {
@@ -34,7 +30,7 @@ export const MessageReactions = ({
 }: MessageReactionsProps) => {
 	const socketClient = useSocket();
 	const { insert, update } = useEvolu();
-	const { channelName, uuid } = useZustand();
+	const { channelId: channelId, uuid } = useZustand();
 	const reactionsQueryResult = useQuery(reactionsQuery(messageId));
 	const allReactionsQueryResult = useQuery(allReactionsQuery(messageId));
 
@@ -85,7 +81,7 @@ export const MessageReactions = ({
 				insert("reaction", {
 					messageId: messageId,
 					reaction: reactionString,
-					channelName: channelName,
+					channelId: channelId,
 					createdBy: uuid,
 				});
 			}
@@ -97,7 +93,7 @@ export const MessageReactions = ({
 			type: WsMessageType.REACTION,
 			networkMessageId: networkMessageId,
 			reaction: reactionString,
-			channelName: channelName,
+			channelId: channelId,
 			isDeleted: isDeleted,
 		};
 		safeSend(socketClient, reactionMessage, "Failed to send reaction message");

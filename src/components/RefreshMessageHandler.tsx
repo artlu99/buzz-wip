@@ -11,7 +11,7 @@ import { useSocket } from "../providers/SocketProvider";
 
 export const RefreshMessageHandler = () => {
 	const socketClient = useSocket();
-	const { channelName, uuid } = useZustand();
+	const { channelId, uuid } = useZustand();
 
 	useEffect(() => {
 		// Short-circuit if uuid is missing
@@ -22,19 +22,19 @@ export const RefreshMessageHandler = () => {
 				return;
 			}
 			const payload: RefreshMessage = e.message;
-			invariant(payload.channelName, "Refresh message has no channel name");
+			invariant(payload.channelId, "Refresh message has no channel name");
 
-			if (payload.channelName !== channelName) return;
+			if (payload.channelId !== channelId) return;
 
 			// get the messages, reactions, and deletes from my own replay history
-			console.log("refresh messages", payload.channelName);
+			console.log("refresh messages", payload.channelId);
 			// only give the last REFRESH_MAX_MESSAGE
 			// only for the last REFRESH_LOOKBACK day
 			// send the messages, reactions, and deletes back across sockets
 		};
 
 		socketClient.on(WsMessageType.TEXT, handler);
-	}, [socketClient, channelName, uuid]);
+	}, [socketClient, channelId, uuid]);
 
 	return null;
 };

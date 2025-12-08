@@ -4,7 +4,8 @@ import { combine, createJSONStorage, persist } from "zustand/middleware";
 import type { UserMessageData } from "../lib/sockets";
 
 export const useZustand = create(persist(combine({
-	channelName: NonEmptyString100.orThrow("buzz-543212345"),
+	channelId: NonEmptyString100.orThrow("buzz-54321"),
+	encrypted: false,
 	user: {
 		displayName: "Anonymous Bee 🐝",
 		pfpUrl: "",
@@ -13,7 +14,8 @@ export const useZustand = create(persist(combine({
 	uuid: undefined as OwnerId | undefined
 }, (set) => (
 	{
-		setChannelName: (channelName: NonEmptyString100) => set({ channelName }),
+		setChannelId: (channelId: NonEmptyString100) => set({ channelId }),
+		toggleEncryption: () => set((state) => ({ encrypted: !state.encrypted })),
 		setUser: (
 			displayName: string,
 			pfpUrl: string = "",

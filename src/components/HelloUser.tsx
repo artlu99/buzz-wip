@@ -40,7 +40,7 @@ export const HelloUser = () => {
 	return uuid ? (
 		<div className="chat chat-start">
 			<div className="chat-header">
-				<span className="">{uuid} just entered the room...</span>
+				<span className="">{uuid} entered the room...</span>
 			</div>
 			<div className="chat-footer opacity-50">{timestamp}</div>
 		</div>

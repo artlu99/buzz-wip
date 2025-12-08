@@ -1,5 +1,14 @@
-import { createIdFromString } from "@evolu/common";
+import {
+	createIdFromString,
+	createRandomBytes,
+	createSymmetricCrypto,
+	EncryptionKey,
+} from "@evolu/common";
 import { useZustand } from "../hooks/use-zustand";
+import {
+	type SerializedEncryptedData,
+	uint8ArrayToBase64,
+} from "../lib/helpers";
 import { useEvolu } from "../lib/local-first";
 import { safeSend } from "../lib/message-utils";
 import type { TextMessage } from "../lib/sockets";
@@ -13,19 +22,19 @@ import { TextEntry } from "./TextEntry";
 
 export const MessageSender = () => {
 	const { insert, update } = useEvolu();
-	const { channelName, user, uuid } = useZustand();
+	const { channelId: channelId, user, uuid } = useZustand();
 	const socketClient = useSocket();
 
-	const handleSend = (content: string) => {
+	const handleSend = async (content: string): Promise<void> => {
 		// Insert our own message into the database immediately
-		if (!uuid)  {
+		if (!uuid) {
 			console.error("Unable to send message, uuid is not set");
 			return;
-		};
+		}
 		const result = insert("message", {
 			content: content,
 			user: JSON.stringify(user),
-			channelName: channelName,
+			channelId: channelId,
 			createdBy: uuid,
 			networkMessageId: createIdFromString(crypto.randomUUID()), // temporary, will be overridden next
 		});
@@ -41,7 +50,7 @@ export const MessageSender = () => {
 			uuid: uuid,
 			type: WsMessageType.STATUS,
 			presence: TypingIndicatorType.STOP_TYPING,
-			channelName: channelName,
+			channelId: channelId,
 		};
 		safeSend(
 			socketClient,
@@ -51,13 +60,30 @@ export const MessageSender = () => {
 
 		// Send the TEXT message over websocket
 		// Note: timestamp comes from envelope (e.date), not from payload
+		// this encryption protocol is not secure (yet), it uses same-band insecure secret transmission
+		const randomBytes = createRandomBytes();
+		const seed = randomBytes.create(32); // Type: Random32
+		const encryptionKey = EncryptionKey.orThrow(seed);
+
+		const crypt = createSymmetricCrypto({
+			randomBytes,
+		});
+		const plaintextBytes = new TextEncoder().encode(content);
+		const encryptedContent = crypt.encrypt(plaintextBytes, encryptionKey);
+
+		const serializedEncryptedContent: SerializedEncryptedData = {
+			nonce: uint8ArrayToBase64(encryptedContent.nonce),
+			ciphertext: uint8ArrayToBase64(encryptedContent.ciphertext),
+		};
+
+		const DO_ENCRYPTION = false;
 		const textMessage: TextMessage = {
 			uuid: uuid,
 			type: WsMessageType.TEXT,
-			content: content,
-			user: user,
-			channelName: channelName,
-			encrypted: false,
+			content: DO_ENCRYPTION ? serializedEncryptedContent : content,
+			user: user, // TODO: add encryption for user
+			channelId: channelId,
+			encrypted: DO_ENCRYPTION,
 			networkMessageId: networkMessageId,
 		};
 		safeSend(socketClient, textMessage, "Failed to send text message");
@@ -68,7 +94,7 @@ export const MessageSender = () => {
 			uuid: uuid,
 			type: WsMessageType.STATUS,
 			presence: TypingIndicatorType.TYPING,
-			channelName: channelName,
+			channelId: channelId,
 		};
 		safeSend(socketClient, message, "Failed to send typing indicator");
 	};
@@ -78,7 +104,7 @@ export const MessageSender = () => {
 			uuid: uuid,
 			type: WsMessageType.STATUS,
 			presence: TypingIndicatorType.STOP_TYPING,
-			channelName: channelName,
+			channelId: channelId,
 		};
 		safeSend(socketClient, message, "Failed to send stop_typing indicator");
 	};

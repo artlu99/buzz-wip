@@ -4,14 +4,14 @@ import { useZustand } from "../hooks/use-zustand";
 import { messagesForChannelQuery } from "../lib/local-first";
 
 export const ClearMessagesElement = () => {
-	const { channelName } = useZustand();
-	const messages = useQuery(messagesForChannelQuery(channelName));
+	const { channelId } = useZustand();
+	const messages = useQuery(messagesForChannelQuery(channelId));
 	const { update } = useEvolu();
 
 	const handleClearAll = () => {
 		if (
 			!window.confirm(
-				`Are you sure you want to clear all messages in ${channelName}? This cannot be undone.`,
+				`Are you sure you want to clear all messages in ${channelId}? This cannot be undone.`,
 			)
 		) {
 			return;

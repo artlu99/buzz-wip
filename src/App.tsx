@@ -22,9 +22,19 @@ import { evoluInstance } from "./lib/local-first";
 import { DoorbellType, WsMessageType } from "./lib/sockets";
 import { useSocket } from "./providers/SocketProvider";
 
+const DISALLOW_ENCRYPTION = true;
+
 function App() {
 	const socketClient = useSocket();
-	const { channelName, user, uuid, setChannelName, setUuid } = useZustand();
+	const {
+		channelId,
+		encrypted,
+		user,
+		uuid,
+		setChannelId,
+		setUuid,
+		toggleEncryption,
+	} = useZustand();
 
 	useEffect(() => {
 		const getAppOwner = async () => {
@@ -42,9 +52,9 @@ function App() {
 			type: WsMessageType.DOORBELL,
 			uuid: uuid,
 			message: DoorbellType.OPEN,
-			channelName: channelName,
+			channelId: channelId,
 		});
-	}, [channelName, uuid, socketClient]);
+	}, [channelId, uuid, socketClient]);
 
 	// Send "bye" message when browser/tab closes
 	useEffect(() => {
@@ -55,7 +65,7 @@ function App() {
 					type: WsMessageType.DOORBELL,
 					uuid: uuid,
 					message: DoorbellType.CLOSE,
-					channelName: channelName,
+					channelId: channelId,
 				});
 			} catch (err) {
 				// Socket might already be closed, which is fine
@@ -71,7 +81,7 @@ function App() {
 						type: WsMessageType.DOORBELL,
 						uuid: uuid,
 						message: DoorbellType.CLOSE,
-						channelName: channelName,
+						channelId: channelId,
 					});
 				} catch (err) {
 					console.log("Could not send bye message on visibility change:", err);
@@ -86,13 +96,13 @@ function App() {
 			window.removeEventListener("beforeunload", handleBeforeUnload);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 		};
-	}, [channelName, uuid, socketClient]);
+	}, [channelId, uuid, socketClient]);
 
 	const handleChannelChange = debounce(
 		{ delay: 500 },
-		(channelName: string) => {
-			if (channelName.length === 0) return;
-			setChannelName(NonEmptyString100.orThrow(channelName.slice(0, 100)));
+		(channelId: string) => {
+			if (channelId.length === 0) return;
+			setChannelId(NonEmptyString100.orThrow(channelId.slice(0, 100)));
 		},
 	);
 
@@ -114,14 +124,36 @@ function App() {
 								</Link>
 							</h1>
 							<div className="flex flex-col items-center gap-2">
-								<p className="text-sm text-gray-500">
-									<input
-										className="input input-ghost"
-										type="text"
-										value={channelName}
-										onChange={(e) => handleChannelChange(e.target.value)}
-									/>
-								</p>
+								<div className="flex flex-row items-center">
+									<div className="flex flex-col gap-1">
+										<label
+											htmlFor="channel-name"
+											className="text-base-content text-sm"
+										>
+											<i className="ph-bold ph-hash mr-1" />
+											Channel Name
+										</label>
+										<div className="relative">
+											<button
+												type="button"
+												className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+												onClick={toggleEncryption}
+												disabled={DISALLOW_ENCRYPTION || !uuid}
+											>
+												<i
+													className={`ph-bold ${encrypted ? "ph-shield-slash" : "ph-shield"} text-gray-500`}
+												/>
+											</button>
+											<input
+												id="channel-name"
+												className="input input-ghost pr-10"
+												type="text"
+												value={channelId}
+												onChange={(e) => handleChannelChange(e.target.value)}
+											/>
+										</div>
+									</div>
+								</div>
 								<p className="text-sm text-gray-500">
 									<Link href="/db">{user?.displayName}</Link>
 								</p>

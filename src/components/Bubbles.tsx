@@ -21,14 +21,14 @@ import { ClickableDateSpan } from "./ClickableDateSpan";
 import { MessageReactions } from "./MessageReactions";
 
 export const Bubbles = () => {
-	const { uuid, channelName } = useZustand();
+	const { uuid, channelId} = useZustand();
 	const { update } = useEvolu();
 	const socketClient = useSocket();
 
-	const messagesQueryResult = useQuery(messagesForChannelQuery(channelName));
+	const messagesQueryResult = useQuery(messagesForChannelQuery(channelId));
 	const reactionsQueryResult = useQuery(
 		allReactionsForChannelQuery(
-			NonEmptyString100.orThrow(channelName.slice(0, 100)),
+			NonEmptyString100.orThrow(channelId.slice(0, 100)),
 		),
 	);
 
@@ -51,7 +51,7 @@ export const Bubbles = () => {
 			uuid: uuid,
 			type: WsMessageType.DELETE,
 			networkMessageId: item.networkMessageId,
-			channelName: item.channelName,
+			channelId: item.channelId,
 			signature: null,
 		};
 		console.log("deleteMessage", deleteMessage);
