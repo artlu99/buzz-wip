@@ -1,15 +1,15 @@
 import { NonEmptyString100 } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useEffect, useState } from "react";
-import { userQuery } from "../lib/local-first";
+import { userQuery } from "../../lib/local-first";
 import {
 	type DoorbellMessage,
 	DoorbellType,
 	isDoorbellMessage,
 	type WsMessage,
 	WsMessageType,
-} from "../lib/sockets";
-import { useSocket } from "../providers/SocketProvider";
+} from "../../lib/sockets";
+import { useSocket } from "../../providers/SocketProvider";
 
 export const HelloUser = () => {
 	const [hello, setHello] = useState<WsMessage | null>(null);

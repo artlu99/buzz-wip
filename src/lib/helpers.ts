@@ -8,8 +8,8 @@ import { z } from "zod";
 
 export const chosenIdenticonStyle: IdenticonStyle = "sutnar";
 
-export function pluralize(count: number, word: string, plural: string = "s") {
-	return count === 1 ? word : `${word}${plural}`;
+export function pluralize(count: number, word: string, plural: string = `${word}s`) {
+	return `${count} ${count === 1 ? word : plural}`;
 }
 
 export const formatTypeError = createFormatTypeError<

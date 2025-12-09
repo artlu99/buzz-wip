@@ -16,7 +16,7 @@ import {
 	WsMessageType,
 } from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
-import { ClickableDateSpan } from "./ClickableDateSpan";
+import { ClickableDateSpan } from "./ui/ClickableDateSpan";
 import { MessageReactions } from "./MessageReactions";
 
 export const Bubbles = () => {

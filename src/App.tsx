@@ -5,35 +5,38 @@ import { AuthActions } from "./components/AuthActions";
 import { AvailableReactions } from "./components/AvailableReactions";
 import { Bubbles } from "./components/Bubbles";
 import { ClearMessagesElement } from "./components/ClearMessagesElement";
-import { DeleteMessageHandler } from "./components/DeleteMessageHandler";
-import { HelloUser } from "./components/HelloUser";
-import { MarcoPoloMessageHandler } from "./components/MarcoPoloMessageHandler";
+import { DeleteMessageHandler } from "./components/listeners/DeleteMessageHandler";
+import { HelloUser } from "./components/listeners/HelloUser";
+import { MarcoPoloMessageHandler } from "./components/listeners/MarcoPoloMessageHandler";
+import { ReactionMessageHandler } from "./components/listeners/ReactionMessageHandler";
+import { TextMessageHandler } from "./components/listeners/TextMessageHandler";
+import { TypingIndicators } from "./components/listeners/TypingIndicators";
 import { MessageSender } from "./components/MessageSender";
 import { MultiSelectorBlock } from "./components/MultiSelectorBlock";
 import { NavBar } from "./components/NavBar";
 import { OwnerActions } from "./components/OwnerActions";
 import { ProfileEditor } from "./components/ProfileEditor";
-import { ReactionMessageHandler } from "./components/ReactionMessageHandler";
-import { TextMessageHandler } from "./components/TextMessageHandler";
-import { TypingIndicators } from "./components/TypingIndicators";
 import { useZustand } from "./hooks/use-zustand";
 import { evoluInstance } from "./lib/local-first";
 import { DoorbellType, WsMessageType } from "./lib/sockets";
+import PWABadge from "./PWABadge";
 import { useSocket } from "./providers/SocketProvider";
 
 function App() {
 	const socketClient = useSocket();
-	const { channelId, encryptionKey, user, uuid, setUuid } = useZustand();
+	const { channelId, encryptionKey, user, uuid, setRoom, setUuid } =
+		useZustand();
 
 	useEffect(() => {
 		const getAppOwner = async () => {
 			const appOwner = await evoluInstance.appOwner;
 			if (appOwner) {
 				setUuid(appOwner.id);
+				setRoom({ [appOwner.id]: Date.now() });
 			}
 		};
 		getAppOwner();
-	}, [setUuid]);
+	}, [setRoom, setUuid]);
 
 	useEffect(() => {
 		if (!uuid) return;
@@ -88,11 +91,12 @@ function App() {
 	}, [channelId, uuid, socketClient]);
 
 	return (
-		<div className="">
-			<NavBar />
-			<Suspense fallback={<div>Initiating...</div>}>
-				<div className="min-h-screen px-8 py-8">
-					<div className="mx-auto max-w-md">
+		<div className="min-h-screen px-8 py-2">
+			<Suspense fallback={<div>Connecting...</div>}>
+				<NavBar />
+				<div className="mx-auto max-w-md">
+					<EvoluProvider value={evoluInstance}>
+						{/* Header */}
 						<div className="mb-2 flex items-center justify-between pb-4">
 							<h1 className="w-full text-start text-xl font-semibold text-gray-900">
 								<Link href="/">
@@ -104,35 +108,35 @@ function App() {
 									Buzz
 								</Link>
 							</h1>
-							<EvoluProvider value={evoluInstance}>
-								<MultiSelectorBlock />
-							</EvoluProvider>
+							<MultiSelectorBlock />
 						</div>
 
-						<EvoluProvider value={evoluInstance}>
-							<TextMessageHandler />
-							<ReactionMessageHandler />
-							<DeleteMessageHandler />
-							<MarcoPoloMessageHandler />
-							<Suspense>
-								<Route path="/">
-									<ClearMessagesElement />
-									<AvailableReactions />
-									<HelloUser />
-									<Bubbles />
-									<TypingIndicators />
-									<MessageSender />
-								</Route>
-								<Route path="/db">
-									<ProfileEditor />
-									<OwnerActions />
-									<AuthActions />
-								</Route>
-							</Suspense>
-						</EvoluProvider>
-					</div>
+						{/* Message handlers */}
+						<TextMessageHandler />
+						<ReactionMessageHandler />
+						<DeleteMessageHandler />
+						<MarcoPoloMessageHandler />
+
+						{/* routes */}
+						<Suspense>
+							<Route path="/">
+								<ClearMessagesElement />
+								<AvailableReactions />
+								<HelloUser />
+								<Bubbles />
+								<TypingIndicators />
+								<MessageSender />
+							</Route>
+							<Route path="/db">
+								<ProfileEditor />
+								<OwnerActions />
+								<AuthActions />
+							</Route>
+						</Suspense>
+					</EvoluProvider>
 				</div>
 			</Suspense>
+			<PWABadge />
 		</div>
 	);
 }

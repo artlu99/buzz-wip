@@ -2,7 +2,7 @@ import {
 	createIdFromString,
 	createRandomBytes,
 	createSymmetricCrypto,
-	EncryptionKey,
+	type EncryptionKey,
 } from "@evolu/common";
 import { useZustand } from "../hooks/use-zustand";
 import {
@@ -18,12 +18,32 @@ import {
 	WsMessageType,
 } from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
-import { TextEntry } from "./TextEntry";
+import { TextEntry } from "./ui/TextEntry";
 
 export const MessageSender = () => {
 	const { insert, update } = useEvolu();
 	const { channelId, encrypted, encryptionKey, user, uuid } = useZustand();
 	const socketClient = useSocket();
+
+	const handleTyping = () => {
+		const message: TypingIndicatorMessage = {
+			uuid: uuid,
+			type: WsMessageType.STATUS,
+			presence: TypingIndicatorType.TYPING,
+			channelId: channelId,
+		};
+		socketClient.safeSend(message);
+	};
+
+	const handleStopTyping = () => {
+		const message: TypingIndicatorMessage = {
+			uuid: uuid,
+			type: WsMessageType.STATUS,
+			presence: TypingIndicatorType.STOP_TYPING,
+			channelId: channelId,
+		};
+		socketClient.safeSend(message);
+	};
 
 	const handleSend = async (content: string): Promise<void> => {
 		// Insert our own message into the database immediately
@@ -59,26 +79,29 @@ export const MessageSender = () => {
 		// this encryption protocol is not secure (yet),
 		// it uses same-band insecure secret transmission
 		// and user input without concern for sufficient entropy
-		const symmetricEncryptionKey = (encryptionKey
-			? Base64ToUint8Array(encryptionKey)
-			: undefined) as EncryptionKey | undefined;
+		const symmetricEncryptionKey = (
+			encryptionKey ? Base64ToUint8Array(encryptionKey) : undefined
+		) as EncryptionKey | undefined;
 
 		const randomBytes = createRandomBytes();
 		const crypt = createSymmetricCrypto({
 			randomBytes,
 		});
 		const plaintextBytes = new TextEncoder().encode(content);
-		const encryptedContent = symmetricEncryptionKey ? crypt.encrypt(
-			plaintextBytes,
-			symmetricEncryptionKey,
-		) : undefined;
+		const encryptedContent = symmetricEncryptionKey
+			? crypt.encrypt(plaintextBytes, symmetricEncryptionKey)
+			: undefined;
 
-		const serializedEncryptedContent: SerializedEncryptedData|undefined = encryptedContent ? {
-			nonce: uint8ArrayToBase64(encryptedContent.nonce),
-			ciphertext: uint8ArrayToBase64(encryptedContent.ciphertext),
-		} : undefined;
+		const serializedEncryptedContent: SerializedEncryptedData | undefined =
+			encryptedContent
+				? {
+						nonce: uint8ArrayToBase64(encryptedContent.nonce),
+						ciphertext: uint8ArrayToBase64(encryptedContent.ciphertext),
+					}
+				: undefined;
 
-		const DO_ENCRYPTION = encrypted && serializedEncryptedContent && (encryptionKey !== undefined);
+		const DO_ENCRYPTION =
+			encrypted && serializedEncryptedContent && encryptionKey !== undefined;
 		const textMessage: TextMessage = {
 			uuid: uuid,
 			type: WsMessageType.TEXT,
@@ -89,26 +112,6 @@ export const MessageSender = () => {
 			networkMessageId: networkMessageId,
 		};
 		socketClient.safeSend(textMessage);
-	};
-
-	const handleTyping = () => {
-		const message: TypingIndicatorMessage = {
-			uuid: uuid,
-			type: WsMessageType.STATUS,
-			presence: TypingIndicatorType.TYPING,
-			channelId: channelId,
-		};
-		socketClient.safeSend(message);
-	};
-
-	const handleStopTyping = () => {
-		const message: TypingIndicatorMessage = {
-			uuid: uuid,
-			type: WsMessageType.STATUS,
-			presence: TypingIndicatorType.STOP_TYPING,
-			channelId: channelId,
-		};
-		socketClient.safeSend(message);
 	};
 
 	return (

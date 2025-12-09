@@ -1,19 +1,19 @@
 import { NonEmptyString100, sqliteFalse, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
-import { useZustand } from "../hooks/use-zustand";
+import { useZustand } from "../../hooks/use-zustand";
 import {
 	allReactionsForChannelQuery,
 	messagesQuery,
 	useEvolu,
-} from "../lib/local-first";
+} from "../../lib/local-first";
 import {
 	isReactionMessage,
 	type ReactionMessage,
 	type WsMessage,
 	WsMessageType,
-} from "../lib/sockets";
-import { useSocket } from "../providers/SocketProvider";
+} from "../../lib/sockets";
+import { useSocket } from "../../providers/SocketProvider";
 
 export const ReactionMessageHandler = () => {
 	const socketClient = useSocket();

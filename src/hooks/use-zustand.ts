@@ -11,9 +11,12 @@ export const useZustand = create(persist(combine({
 		displayName: "Anonymous Bee 🐝",
 		pfpUrl: "",
 		bio: "",
+		status: "",
+		notificationChannel: "",
 	} as UserMessageData,
+	room: {} as Record<string, number>, // uuid -> unixTimestamp
 	uuid: undefined as OwnerId | undefined
-}, (set) => (
+}, (set, get) => (
 	{
 		setChannelId: (channelId: NonEmptyString100) => set({ channelId }),
 		setEncrypted: (encrypted: boolean) => set({ encrypted }),
@@ -22,12 +25,26 @@ export const useZustand = create(persist(combine({
 			displayName: string,
 			pfpUrl: string = "",
 			bio: string = "",
+			status: string = "",
+			notificationChannel: string = "",
 		) => set(
-			{ user: { displayName, pfpUrl, bio } }
+			{ user: { displayName, pfpUrl, bio, status, notificationChannel } }
 		),
+		setRoom: (room: Record<string, number>) => set({ room: { ...room } }),
 		setUuid: (uuid: OwnerId | undefined) => set(
 			{ uuid }
 		),
+		pruneStaleEntries: (maxAgeMs: number = 60000) => {
+			const { room, uuid } = get();
+			const now = Date.now();
+			const pruned = Object.fromEntries(
+				Object.entries(room).filter(([uuidKey, timestamp]) => {
+					// Keep entries that are not stale, and always keep self
+					return now - timestamp < maxAgeMs || uuidKey === uuid;
+				})
+			);
+			set({ room: pruned });
+		},
 	}
 )),
 	{

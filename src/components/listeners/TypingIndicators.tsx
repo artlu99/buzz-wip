@@ -2,15 +2,15 @@ import { OwnerId } from "@evolu/common";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
-import { chosenIdenticonStyle } from "../lib/helpers";
+import { chosenIdenticonStyle } from "../../lib/helpers";
 import {
 	isTypingIndicatorWsMessage,
 	TypingIndicatorType,
 	type TypingIndicatorWsMessage,
 	type WsMessage,
 	WsMessageType,
-} from "../lib/sockets";
-import { useSocket } from "../providers/SocketProvider";
+} from "../../lib/sockets";
+import { useSocket } from "../../providers/SocketProvider";
 
 const STALE_TIME = 5000; // 5 seconds
 

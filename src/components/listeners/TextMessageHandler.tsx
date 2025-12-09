@@ -12,16 +12,16 @@ import {
 import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import invariant from "tiny-invariant";
-import { useZustand } from "../hooks/use-zustand";
-import { Base64ToUint8Array } from "../lib/helpers";
-import { messagesForChannelQuery, useEvolu } from "../lib/local-first";
+import { useZustand } from "../../hooks/use-zustand";
+import { Base64ToUint8Array } from "../../lib/helpers";
+import { messagesForChannelQuery, useEvolu } from "../../lib/local-first";
 import {
 	isTextMessage,
 	type TextMessage,
 	type WsMessage,
 	WsMessageType,
-} from "../lib/sockets";
-import { useSocket } from "../providers/SocketProvider";
+} from "../../lib/sockets";
+import { useSocket } from "../../providers/SocketProvider";
 
 export const TextMessageHandler = () => {
 	const socketClient = useSocket();

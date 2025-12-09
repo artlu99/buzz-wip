@@ -5,14 +5,14 @@ import {
 	allReactionsForAllMessagesQuery,
 	messagesQuery,
 	useEvolu,
-} from "../lib/local-first";
+} from "../../lib/local-first";
 import {
 	type DeleteMessage,
 	isDeleteMessage,
 	type WsMessage,
 	WsMessageType,
-} from "../lib/sockets";
-import { useSocket } from "../providers/SocketProvider";
+} from "../../lib/sockets";
+import { useSocket } from "../../providers/SocketProvider";
 
 export const DeleteMessageHandler = () => {
 	const socketClient = useSocket();

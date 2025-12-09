@@ -6,8 +6,8 @@ import {
 } from "@evolu/common";
 import { useEffect } from "react";
 import invariant from "tiny-invariant";
-import { useZustand } from "../hooks/use-zustand";
-import { useEvolu } from "../lib/local-first";
+import { useZustand } from "../../hooks/use-zustand";
+import { useEvolu } from "../../lib/local-first";
 import {
 	type ChannelData,
 	isMarcoPoloMessage,
@@ -15,14 +15,36 @@ import {
 	type UserMessageData,
 	type WsMessage,
 	WsMessageType,
-} from "../lib/sockets";
-import { useSocket } from "../providers/SocketProvider";
+} from "../../lib/sockets";
+import { useSocket } from "../../providers/SocketProvider";
+
+const PRUNE_INTERVAL_MS = 60000; // 1 minute
+const STALE_THRESHOLD_MS = 600000; // 10 minutes
 
 export const MarcoPoloMessageHandler = () => {
 	const socketClient = useSocket();
 	const { upsert } = useEvolu();
-	const { channelId, encryptionKey, uuid, user, setEncryptionKey } =
-		useZustand();
+	const {
+		channelId,
+		encryptionKey,
+		room,
+		uuid,
+		user,
+		pruneStaleEntries,
+		setEncryptionKey,
+		setRoom,
+	} = useZustand();
+
+	// Periodic pruning of stale room entries
+	useEffect(() => {
+		if (!uuid) return;
+
+		const interval = setInterval(() => {
+			pruneStaleEntries(STALE_THRESHOLD_MS);
+		}, PRUNE_INTERVAL_MS);
+
+		return () => clearInterval(interval);
+	}, [uuid, pruneStaleEntries]);
 
 	useEffect(() => {
 		// Short-circuit if uuid is missing
@@ -61,6 +83,16 @@ export const MarcoPoloMessageHandler = () => {
 			// handle Polo messages
 			invariant(payload.uuid, "Marco Polo message has no uuid");
 			const networkUuid = NonEmptyString100.orThrow(payload.uuid);
+
+			// Prune stale entries when a new user joins
+			pruneStaleEntries(STALE_THRESHOLD_MS);
+
+			// Update room with latest timestamp for this uuid (Record automatically keeps latest)
+			setRoom({
+				...room,
+				[networkUuid]: Date.now(),
+			});
+
 			const displayName = String100.orThrow(
 				payload.message.user?.displayName?.slice(0, 100) ?? "<none>",
 			);
@@ -107,9 +139,12 @@ export const MarcoPoloMessageHandler = () => {
 		socketClient,
 		channelId,
 		encryptionKey,
+		room,
 		uuid,
 		user,
+		pruneStaleEntries,
 		setEncryptionKey,
+		setRoom,
 		upsert,
 	]);
 

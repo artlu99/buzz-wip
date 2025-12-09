@@ -6,6 +6,7 @@ import {
 import { useQuery } from "@evolu/react";
 import { debounce } from "radash";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import { Link } from "wouter";
 import { useZustand } from "../hooks/use-zustand";
 import { uint8ArrayToBase64 } from "../lib/helpers";
@@ -40,6 +41,21 @@ export const MultiSelectorBlock = () => {
 		setLocalEncryptionKey(encryptionKey ?? "");
 	}, [encryptionKey]);
 
+	useEffect(() => {
+		if (uuid && encrypted) {
+			toast.success("New messages will be encrypted", {
+				position: "bottom-center",
+				icon: <i className="ph-bold ph-lock" />,
+			});
+		}
+		if (uuid && !encrypted) {
+			toast.success("New messages broadcast to everyone", {
+				position: "bottom-center",
+				icon: <i className="ph-bold ph-megaphone text-green-500" />,
+			});
+		}
+	}, [encrypted, uuid]);
+
 	// Debounced handlers that update Zustand (triggers network calls)
 	const debouncedSetChannelId = useMemo(
 		() =>
@@ -64,12 +80,12 @@ export const MultiSelectorBlock = () => {
 
 	const handleChannelChange = (value: string) => {
 		setLocalChannelId(value); // Immediate UI update
-		debouncedSetChannelId(value); // Debounced network update
+		debouncedSetChannelId(value); // Debounced network update trigger
 	};
 
 	const handleEncryptionKeyChange = (value: string) => {
 		setLocalEncryptionKey(value); // Immediate UI update
-		debouncedSetEncryptionKey(value); // Debounced network update
+		debouncedSetEncryptionKey(value); // Debounced network update trigger
 	};
 
 	const handleEncryptionKeyClear = () => {
@@ -92,14 +108,44 @@ export const MultiSelectorBlock = () => {
 
 	return (
 		<div className="flex flex-col items-center gap-2">
+			{/* User's display name */}
+			<p className="text-sm text-gray-500">
+				<Link href="/db">{user?.displayName}</Link>
+			</p>
+
+			{/* Channel selector */}
 			<div className="flex flex-row items-center">
 				<div className="flex flex-col gap-1">
+					{/* Channel name */}
 					{SHOW_CHANNEL_NAME && (
 						<label htmlFor="channel-name" className="text-base-content text-sm">
 							<i className="ph-bold ph-hash mr-1" />
 							{channelName === channelId ? "Channel Name" : channelName}
 						</label>
 					)}
+
+					{/* Channel selector */}
+					<div className="relative">
+						<button
+							type="button"
+							className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+							onClick={() => setEncrypted(!encrypted)}
+							disabled={!uuid || !localEncryptionKey}
+						>
+							<i
+								className={`ph-bold ${encrypted ? "ph-cloud-slash" : "ph-megaphone"} text-gray-500`}
+							/>
+						</button>
+						<input
+							id="channel-name"
+							className="input input-ghost pr-10"
+							type="text"
+							value={localChannelId}
+							onChange={(e) => handleChannelChange(e.target.value)}
+						/>
+					</div>
+
+					{/* Encryption key specification */}
 					<div className="relative text-sm text-gray-500">
 						<input
 							id="channel-name"
@@ -129,30 +175,8 @@ export const MultiSelectorBlock = () => {
 							</button>
 						)}
 					</div>
-					<div className="relative">
-						<button
-							type="button"
-							className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-							onClick={() => setEncrypted(!encrypted)}
-							disabled={!uuid || !localEncryptionKey}
-						>
-							<i
-								className={`ph-bold ${encrypted ? "ph-cloud-slash" : "ph-megaphone"} text-gray-500`}
-							/>
-						</button>
-						<input
-							id="channel-name"
-							className="input input-ghost pr-10"
-							type="text"
-							value={localChannelId}
-							onChange={(e) => handleChannelChange(e.target.value)}
-						/>
-					</div>
 				</div>
 			</div>
-			<p className="text-sm text-gray-500">
-				<Link href="/db">{user?.displayName}</Link>
-			</p>
 		</div>
 	);
 };

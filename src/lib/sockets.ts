@@ -28,8 +28,8 @@ export enum TypingIndicatorType {
 }
 
 export enum DoorbellType {
-	OPEN = "hello",
-	CLOSE = "bye",
+	OPEN = "hello", // likely to be duplicated
+	CLOSE = "bye", // unreliable
 }
 
 export interface TypingIndicatorMessage {
@@ -67,12 +67,17 @@ export interface UserMessageData {
 	displayName: string;
 	pfpUrl: string;
 	bio: string;
+	status: string;
+	notificationChannel: string;
 }
 
+// TODO: add validation, currently breaks at 1000 chars total JSON object
 export const UserMessageDataSchema = z.object({
 	displayName: z.string(), // can be empty but not null
-	pfpUrl: z.string(), // TODO: add validation
-	bio: z.string(), // TODO: add validation, currently breaks at 1000 chars total JSON object
+	pfpUrl: z.string(), // TODO: add validation for urls
+	bio: z.string(),
+	status: z.string().optional(),
+	notificationChannel: z.string().optional(),
 });
 
 export interface MarcoPoloMessage {
