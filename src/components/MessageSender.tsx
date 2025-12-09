@@ -59,33 +59,33 @@ export const MessageSender = () => {
 		// this encryption protocol is not secure (yet),
 		// it uses same-band insecure secret transmission
 		// and user input without concern for sufficient entropy
-		const symmetricEncryptionKey = Base64ToUint8Array(
-			encryptionKey ?? "",
-		) as EncryptionKey;
+		const symmetricEncryptionKey = (encryptionKey
+			? Base64ToUint8Array(encryptionKey)
+			: undefined) as EncryptionKey | undefined;
 
 		const randomBytes = createRandomBytes();
 		const crypt = createSymmetricCrypto({
 			randomBytes,
 		});
 		const plaintextBytes = new TextEncoder().encode(content);
-		const encryptedContent = crypt.encrypt(
+		const encryptedContent = symmetricEncryptionKey ? crypt.encrypt(
 			plaintextBytes,
 			symmetricEncryptionKey,
-		);
+		) : undefined;
 
-		const serializedEncryptedContent: SerializedEncryptedData = {
+		const serializedEncryptedContent: SerializedEncryptedData|undefined = encryptedContent ? {
 			nonce: uint8ArrayToBase64(encryptedContent.nonce),
 			ciphertext: uint8ArrayToBase64(encryptedContent.ciphertext),
-		};
+		} : undefined;
 
-		const DO_ENCRYPTION = encrypted && encryptionKey !== undefined;
+		const DO_ENCRYPTION = encrypted && serializedEncryptedContent && (encryptionKey !== undefined);
 		const textMessage: TextMessage = {
 			uuid: uuid,
 			type: WsMessageType.TEXT,
 			content: DO_ENCRYPTION ? serializedEncryptedContent : content,
 			user: user, // TODO: add encryption for user
 			channelId: channelId,
-			encrypted: DO_ENCRYPTION,
+			encrypted: !!DO_ENCRYPTION,
 			networkMessageId: networkMessageId,
 		};
 		socketClient.safeSend(textMessage);

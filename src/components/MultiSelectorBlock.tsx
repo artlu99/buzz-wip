@@ -11,6 +11,8 @@ import { useZustand } from "../hooks/use-zustand";
 import { uint8ArrayToBase64 } from "../lib/helpers";
 import { ChannelId, channelQuery } from "../lib/local-first";
 
+const SHOW_CHANNEL_NAME = false;
+
 export const MultiSelectorBlock = () => {
 	const {
 		channelId,
@@ -92,17 +94,19 @@ export const MultiSelectorBlock = () => {
 		<div className="flex flex-col items-center gap-2">
 			<div className="flex flex-row items-center">
 				<div className="flex flex-col gap-1">
-					<label htmlFor="channel-name" className="text-base-content text-sm">
-						<i className="ph-bold ph-hash mr-1" />
-						{channelName === channelId ? "Channel Name" : channelName}
-					</label>
+					{SHOW_CHANNEL_NAME && (
+						<label htmlFor="channel-name" className="text-base-content text-sm">
+							<i className="ph-bold ph-hash mr-1" />
+							{channelName === channelId ? "Channel Name" : channelName}
+						</label>
+					)}
 					<div className="relative text-sm text-gray-500">
 						<input
 							id="channel-name"
 							className="input input-ghost pr-10"
 							type="text"
 							value={localEncryptionKey}
-							placeholder="No encryption"
+							placeholder="No shared key"
 							onChange={(e) => handleEncryptionKeyChange(e.target.value)}
 						/>
 						{!localEncryptionKey && (
@@ -123,7 +127,7 @@ export const MultiSelectorBlock = () => {
 							>
 								<i className="ph-bold ph-x text-gray-500" />
 							</button>
-						)}{" "}
+						)}
 					</div>
 					<div className="relative">
 						<button
@@ -133,7 +137,7 @@ export const MultiSelectorBlock = () => {
 							disabled={!uuid || !localEncryptionKey}
 						>
 							<i
-								className={`ph-bold ${encrypted ? "ph-shield-check" : "ph-shield-slash"} text-gray-500`}
+								className={`ph-bold ${encrypted ? "ph-cloud-slash" : "ph-megaphone"} text-gray-500`}
 							/>
 						</button>
 						<input

@@ -39,12 +39,14 @@ export const TextMessageHandler = () => {
 	const insertRef = useRef(insert);
 	const upsertRef = useRef(upsert);
 
-	// Keep refs in sync with current values
-	channelIdRef.current = channelId;
-	encryptionKeyRef.current = encryptionKey;
-	uuidRef.current = uuid;
-	insertRef.current = insert;
-	upsertRef.current = upsert;
+	// Keep refs in sync with current values (using useEffect is more React-idiomatic)
+	useEffect(() => {
+		channelIdRef.current = channelId;
+		encryptionKeyRef.current = encryptionKey;
+		uuidRef.current = uuid;
+		insertRef.current = insert;
+		upsertRef.current = upsert;
+	}, [channelId, encryptionKey, uuid, insert, upsert]);
 
 	useEffect(() => {
 		const handler = (e: WsMessage) => {

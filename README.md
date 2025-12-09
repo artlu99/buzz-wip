@@ -4,10 +4,11 @@ never-server public and private messages
 
 ## TODO
 
-- [ ] marco-polo messages
+- [x] marco-polo messages
 - [ ] channels registry
 - [ ] history bots
-- [ ] e2e symmetric encryption
+- [x] wire symmetric encryption
 - [ ] forward secret encryption
-- [ ] specific reaction types for each chat, including default sticker packs
-- [ ] reveal pfp (choice)
+- [ ] specific reaction types for each chat, incl sticker packs
+- [ ] user metadata anonymization
+- [ ] reveal pfp (user choice)
