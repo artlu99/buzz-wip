@@ -43,7 +43,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 		// Send bye message to previous channel before switching
 		if (previousClientRef.current && uuid) {
 			try {
-				previousClientRef.current.send({
+				previousClientRef.current.safeSend({
 					type: WsMessageType.DOORBELL,
 					uuid: uuid,
 					message: DoorbellType.CLOSE,
@@ -67,7 +67,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 		return () => {
 			if (client && uuid) {
 				try {
-					client.send({
+					client.safeSend({
 						type: WsMessageType.DOORBELL,
 						uuid: uuid,
 						message: DoorbellType.CLOSE,

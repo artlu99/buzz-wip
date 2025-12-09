@@ -52,7 +52,7 @@ export interface ChannelData {
 	name?: string|null;
 	description?: string|null;
 	pfpUrl?: string|null;
-	encryptionKey?: string|null;
+	publicUselessEncryptionKey?: string|null;
 }
 
 export const ChannelDataSchema = z.object({
@@ -60,7 +60,7 @@ export const ChannelDataSchema = z.object({
 	name: z.string().nullable().optional(),
 	description: z.string().nullable().optional(),
 	pfpUrl: z.string().nullable().optional(),
-	encryptionKey: z.string().nullable().optional(),
+	publicUselessEncryptionKey: z.string().nullable().optional(),
 });
 
 export interface UserMessageData {
@@ -155,6 +155,16 @@ export function isDoorbellMessage(
 	);
 }
 
+export function isMarcoPoloMessage(message: unknown): message is MarcoPoloMessage {
+	return (
+		typeof message === "object" &&
+		message !== null &&
+		"type" in message &&
+		message.type === WsMessageType.MARCO_POLO &&
+		"channelId" in message
+	);
+}
+
 export function isReactionMessage(
 	message: unknown,
 ): message is ReactionMessage {
@@ -163,10 +173,9 @@ export function isReactionMessage(
 		message !== null &&
 		"type" in message &&
 		message.type === WsMessageType.REACTION &&
-		"networkMessageId" in message &&
+		"uuid" in message && message.uuid !== undefined &&		"networkMessageId" in message &&
 		"reaction" in message &&
 		"channelId" in message &&
-		"createdBy" in message &&
 		"isDeleted" in message &&
 		typeof message.isDeleted === "boolean"
 	);
@@ -178,9 +187,9 @@ export function isDeleteMessage(message: unknown): message is DeleteMessage {
 		message !== null &&
 		"type" in message &&
 		message.type === WsMessageType.DELETE &&
+		"uuid" in message && message.uuid !== undefined &&
 		"networkMessageId" in message &&
-		"channelId" in message &&
-		"deletedBy" in message
+		"channelId" in message
 	);
 }
 
@@ -276,15 +285,20 @@ export class TypedWsClient {
 		});
 	}
 
-	public send(
+	public safeSend(
 		message:
 			| TypingIndicatorMessage
 			| DoorbellMessage
+			| MarcoPoloMessage
 			| TextMessage
 			| ReactionMessage
 			| DeleteMessage,
 	) {
-		this.socket.send(message);
+		try {
+			this.socket.send(message);
+		} catch (err) {
+			console.error("Failed to send message", err);
+		}
 	}
 
 	public destroy() {

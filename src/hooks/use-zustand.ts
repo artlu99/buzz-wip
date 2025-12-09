@@ -6,6 +6,7 @@ import type { UserMessageData } from "../lib/sockets";
 export const useZustand = create(persist(combine({
 	channelId: NonEmptyString100.orThrow("buzz-54321"),
 	encrypted: false,
+	encryptionKey: undefined as string | undefined,
 	user: {
 		displayName: "Anonymous Bee 🐝",
 		pfpUrl: "",
@@ -15,7 +16,8 @@ export const useZustand = create(persist(combine({
 }, (set) => (
 	{
 		setChannelId: (channelId: NonEmptyString100) => set({ channelId }),
-		toggleEncryption: () => set((state) => ({ encrypted: !state.encrypted })),
+		setEncrypted: (encrypted: boolean) => set({ encrypted }),
+		setEncryptionKey: (encryptionKey: string | undefined) => set({ encryptionKey }),
 		setUser: (
 			displayName: string,
 			pfpUrl: string = "",

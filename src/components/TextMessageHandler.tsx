@@ -1,5 +1,8 @@
 import {
 	createIdFromString,
+	createRandomBytes,
+	createSymmetricCrypto,
+	type EncryptionKey,
 	NonEmptyString100,
 	NonEmptyString1000,
 	OwnerId,
@@ -10,6 +13,7 @@ import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import invariant from "tiny-invariant";
 import { useZustand } from "../hooks/use-zustand";
+import { Base64ToUint8Array } from "../lib/helpers";
 import { messagesForChannelQuery, useEvolu } from "../lib/local-first";
 import {
 	isTextMessage,
@@ -22,11 +26,25 @@ import { useSocket } from "../providers/SocketProvider";
 export const TextMessageHandler = () => {
 	const socketClient = useSocket();
 	const { insert, upsert } = useEvolu();
-	const { channelId, uuid } = useZustand();
+	const { channelId, encryptionKey, uuid } = useZustand();
 
 	const allMessages = useQuery(messagesForChannelQuery(channelId));
 	const allMessagesRef = useRef(allMessages);
 	allMessagesRef.current = allMessages;
+
+	// Use refs to always read the latest values without re-registering the handler
+	const channelIdRef = useRef(channelId);
+	const encryptionKeyRef = useRef(encryptionKey);
+	const uuidRef = useRef(uuid);
+	const insertRef = useRef(insert);
+	const upsertRef = useRef(upsert);
+
+	// Keep refs in sync with current values
+	channelIdRef.current = channelId;
+	encryptionKeyRef.current = encryptionKey;
+	uuidRef.current = uuid;
+	insertRef.current = insert;
+	upsertRef.current = upsert;
 
 	useEffect(() => {
 		const handler = (e: WsMessage) => {
@@ -36,18 +54,43 @@ export const TextMessageHandler = () => {
 			const payload: TextMessage = e.message;
 			invariant(payload.uuid, "Text message has no uuid");
 
-			if (payload.channelId !== channelId) return;
-			if (payload.uuid === uuid) return;
+			// Read from refs to get the latest values
+			if (payload.channelId !== channelIdRef.current) return;
+			if (payload.uuid === uuidRef.current) return;
 
-			invariant(
-				payload.encrypted === false,
-				"Text messages must be unencrypted",
-			);
+			let content: string | undefined;
+			if (typeof payload.content === "string") {
+				content = payload.content;
+			} else {
+				const currentEncryptionKey = encryptionKeyRef.current;
+				if (!currentEncryptionKey) {
+					return;
+				}
 
-			invariant(
-				typeof payload.content === "string",
-				"Content must be a string",
-			);
+				const symmetricEncryptionKey = Base64ToUint8Array(
+					currentEncryptionKey ?? "",
+				) as EncryptionKey;
+
+				const { ciphertext, nonce } = payload.content;
+
+				const randomBytes = createRandomBytes();
+				const crypt = createSymmetricCrypto({
+					randomBytes,
+				});
+
+				const decryptedContent = crypt.decrypt(
+					Base64ToUint8Array(ciphertext),
+					symmetricEncryptionKey,
+					Base64ToUint8Array(nonce),
+				);
+
+				if (decryptedContent.ok) {
+					content = new TextDecoder().decode(decryptedContent.value);
+				}
+			}
+			if (!content) {
+				return;
+			}
 
 			const networkMessageId = NonEmptyString100.orThrow(
 				payload.networkMessageId.slice(0, 100),
@@ -64,12 +107,11 @@ export const TextMessageHandler = () => {
 			const json = JSON.stringify(payload.user);
 			const userItem = NonEmptyString1000.orThrow(json);
 
-			insert("message", {
-				content: NonEmptyString1000.orThrow(payload.content.slice(0, 1000)),
+			// Use refs to get the latest functions
+			insertRef.current("message", {
+				content: NonEmptyString1000.orThrow(content.slice(0, 1000)),
 				user: userItem,
-				channelId: NonEmptyString100.orThrow(
-					payload.channelId.slice(0, 100),
-				),
+				channelId: NonEmptyString100.orThrow(payload.channelId.slice(0, 100)),
 				createdBy: OwnerId.orThrow(payload.uuid),
 				networkMessageId: networkMessageId,
 			});
@@ -82,7 +124,7 @@ export const TextMessageHandler = () => {
 				payload.user.pfpUrl?.slice(0, 1000) ?? "<none>",
 			);
 			const bio = String1000.orThrow(payload.user.bio?.slice(0, 1000) ?? "");
-			upsert("user", {
+			upsertRef.current("user", {
 				id: createIdFromString(payload.uuid),
 				networkUuid,
 				displayName,
@@ -92,7 +134,9 @@ export const TextMessageHandler = () => {
 		};
 
 		socketClient.on(WsMessageType.TEXT, handler);
-	}, [socketClient, channelId, uuid, insert, upsert]);
+		// Only re-register when socketClient changes, not when encryptionKey/channelId/uuid change
+		// The handler reads from refs, so it always has the latest values
+	}, [socketClient]);
 
 	return null;
 };

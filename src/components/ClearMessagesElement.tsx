@@ -33,7 +33,7 @@ export const ClearMessagesElement = () => {
 				onClick={handleClearAll}
 				className="btn btn-sm btn-outline"
 			>
-				Clear All Messages
+				Clear All Messages Locally
 			</button>
 		</div>
 	) : null;

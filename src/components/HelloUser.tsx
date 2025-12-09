@@ -1,4 +1,7 @@
+import { NonEmptyString100 } from "@evolu/common";
+import { useQuery } from "@evolu/react";
 import { useEffect, useState } from "react";
+import { userQuery } from "../lib/local-first";
 import {
 	type DoorbellMessage,
 	DoorbellType,
@@ -37,12 +40,28 @@ export const HelloUser = () => {
 		minute: "2-digit",
 	});
 
-	return uuid ? (
+	// Query user data only if uuid is available
+	// When uuid is undefined, use a placeholder ID (query will return empty results)
+	const user = useQuery(
+		userQuery(
+			NonEmptyString100.orThrow((uuid ?? "uninitialized").slice(0, 100)),
+		),
+	);
+
+	// Don't render if uuid is missing
+	if (!uuid) {
+		return null;
+	}
+
+	// At this point, uuid is guaranteed to be defined
+	const displayName = user?.[0]?.displayName ?? uuid;
+
+	return (
 		<div className="chat chat-start">
 			<div className="chat-header">
-				<span className="">{uuid} entered the room...</span>
+				<span className="">{displayName} entered the room...</span>
 			</div>
 			<div className="chat-footer opacity-50">{timestamp}</div>
 		</div>
-	) : null;
+	);
 };

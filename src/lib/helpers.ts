@@ -4,6 +4,7 @@ import {
 	type MaxLengthError,
 	type MinLengthError,
 } from "@evolu/common";
+import { z } from "zod";
 
 export const chosenIdenticonStyle: IdenticonStyle = "sutnar";
 
@@ -46,3 +47,8 @@ export interface SerializedEncryptedData {
 	nonce: string;
 	ciphertext: string;
 }
+
+export const SerializedEncryptedDataSchema = z.object({
+	nonce: z.string(),
+	ciphertext: z.string(),
+});

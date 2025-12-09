@@ -10,7 +10,6 @@ import {
 	messagesForChannelQuery,
 	useEvolu,
 } from "../lib/local-first";
-import { safeSend } from "../lib/message-utils";
 import {
 	type DeleteMessage,
 	UserMessageDataSchema,
@@ -21,7 +20,7 @@ import { ClickableDateSpan } from "./ClickableDateSpan";
 import { MessageReactions } from "./MessageReactions";
 
 export const Bubbles = () => {
-	const { uuid, channelId} = useZustand();
+	const { uuid, channelId } = useZustand();
 	const { update } = useEvolu();
 	const socketClient = useSocket();
 
@@ -55,7 +54,7 @@ export const Bubbles = () => {
 			signature: null,
 		};
 		console.log("deleteMessage", deleteMessage);
-		safeSend(socketClient, deleteMessage, "Failed to send delete message");
+		socketClient.safeSend(deleteMessage);
 	};
 
 	const messages = alphabetical(

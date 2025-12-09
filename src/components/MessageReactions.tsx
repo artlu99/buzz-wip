@@ -7,7 +7,6 @@ import {
 	reactionsQuery,
 	useEvolu,
 } from "../lib/local-first";
-import { safeSend } from "../lib/message-utils";
 import {
 	availableReactions,
 	type ReactionType,
@@ -30,7 +29,7 @@ export const MessageReactions = ({
 }: MessageReactionsProps) => {
 	const socketClient = useSocket();
 	const { insert, update } = useEvolu();
-	const { channelId: channelId, uuid } = useZustand();
+	const { channelId, uuid } = useZustand();
 	const reactionsQueryResult = useQuery(reactionsQuery(messageId));
 	const allReactionsQueryResult = useQuery(allReactionsQuery(messageId));
 
@@ -96,7 +95,7 @@ export const MessageReactions = ({
 			channelId: channelId,
 			isDeleted: isDeleted,
 		};
-		safeSend(socketClient, reactionMessage, "Failed to send reaction message");
+		socketClient.safeSend(reactionMessage);
 	};
 
 	const totalReactionCount = reactions.length;

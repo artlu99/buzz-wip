@@ -6,11 +6,11 @@ import {
 } from "@evolu/common";
 import { useZustand } from "../hooks/use-zustand";
 import {
+	Base64ToUint8Array,
 	type SerializedEncryptedData,
 	uint8ArrayToBase64,
 } from "../lib/helpers";
 import { useEvolu } from "../lib/local-first";
-import { safeSend } from "../lib/message-utils";
 import type { TextMessage } from "../lib/sockets";
 import {
 	type TypingIndicatorMessage,
@@ -22,7 +22,7 @@ import { TextEntry } from "./TextEntry";
 
 export const MessageSender = () => {
 	const { insert, update } = useEvolu();
-	const { channelId: channelId, user, uuid } = useZustand();
+	const { channelId, encrypted, encryptionKey, user, uuid } = useZustand();
 	const socketClient = useSocket();
 
 	const handleSend = async (content: string): Promise<void> => {
@@ -52,31 +52,33 @@ export const MessageSender = () => {
 			presence: TypingIndicatorType.STOP_TYPING,
 			channelId: channelId,
 		};
-		safeSend(
-			socketClient,
-			stopTypingMessage,
-			"Failed to send stop_typing indicator",
-		);
+		socketClient.safeSend(stopTypingMessage);
 
 		// Send the TEXT message over websocket
 		// Note: timestamp comes from envelope (e.date), not from payload
-		// this encryption protocol is not secure (yet), it uses same-band insecure secret transmission
-		const randomBytes = createRandomBytes();
-		const seed = randomBytes.create(32); // Type: Random32
-		const encryptionKey = EncryptionKey.orThrow(seed);
+		// this encryption protocol is not secure (yet),
+		// it uses same-band insecure secret transmission
+		// and user input without concern for sufficient entropy
+		const symmetricEncryptionKey = Base64ToUint8Array(
+			encryptionKey ?? "",
+		) as EncryptionKey;
 
+		const randomBytes = createRandomBytes();
 		const crypt = createSymmetricCrypto({
 			randomBytes,
 		});
 		const plaintextBytes = new TextEncoder().encode(content);
-		const encryptedContent = crypt.encrypt(plaintextBytes, encryptionKey);
+		const encryptedContent = crypt.encrypt(
+			plaintextBytes,
+			symmetricEncryptionKey,
+		);
 
 		const serializedEncryptedContent: SerializedEncryptedData = {
 			nonce: uint8ArrayToBase64(encryptedContent.nonce),
 			ciphertext: uint8ArrayToBase64(encryptedContent.ciphertext),
 		};
 
-		const DO_ENCRYPTION = false;
+		const DO_ENCRYPTION = encrypted && encryptionKey !== undefined;
 		const textMessage: TextMessage = {
 			uuid: uuid,
 			type: WsMessageType.TEXT,
@@ -86,7 +88,7 @@ export const MessageSender = () => {
 			encrypted: DO_ENCRYPTION,
 			networkMessageId: networkMessageId,
 		};
-		safeSend(socketClient, textMessage, "Failed to send text message");
+		socketClient.safeSend(textMessage);
 	};
 
 	const handleTyping = () => {
@@ -96,7 +98,7 @@ export const MessageSender = () => {
 			presence: TypingIndicatorType.TYPING,
 			channelId: channelId,
 		};
-		safeSend(socketClient, message, "Failed to send typing indicator");
+		socketClient.safeSend(message);
 	};
 
 	const handleStopTyping = () => {
@@ -106,7 +108,7 @@ export const MessageSender = () => {
 			presence: TypingIndicatorType.STOP_TYPING,
 			channelId: channelId,
 		};
-		safeSend(socketClient, message, "Failed to send stop_typing indicator");
+		socketClient.safeSend(message);
 	};
 
 	return (

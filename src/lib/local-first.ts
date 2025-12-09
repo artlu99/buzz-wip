@@ -246,3 +246,26 @@ export const allReactionsForChannelQuery = (channelId: NonEmptyString100) =>
 export type AllReactionsForChannelRow = ReturnType<
 	typeof allReactionsForChannelQuery
 >["Row"];
+
+export const userQuery = (networkUuid: NonEmptyString100) =>
+	evoluInstance.createQuery((db) =>
+		db
+			.selectFrom("user")
+			.select(["id", "displayName", "pfpUrl", "bio"])
+			.where("networkUuid", "is", networkUuid)
+			.where("isDeleted", "is not", sqliteTrue)
+			.$narrowType<{ displayName: kysely.NotNull; pfpUrl: kysely.NotNull; bio: kysely.NotNull }>(),
+	);
+export type UserRow = ReturnType<typeof userQuery>["Row"];
+
+// n.b. channelId is the local id, not the network id
+export const channelQuery = (channelId: ChannelId) =>
+	evoluInstance.createQuery((db) =>
+		db
+			.selectFrom("channel")
+			.select(["id", "name", "description", "pfpUrl", "encryptionKey"])
+			.where("id", "is", channelId)
+			.where("isDeleted", "is not", sqliteTrue)
+			.$narrowType<{ name: kysely.NotNull; description: kysely.NotNull; pfpUrl: kysely.NotNull; encryptionKey: kysely.NotNull }>(),
+	);
+export type ChannelRow = ReturnType<typeof channelQuery>["Row"];
