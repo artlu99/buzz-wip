@@ -18,7 +18,9 @@ import { useSocket } from "../../providers/SocketProvider";
 export const ReactionMessageHandler = () => {
 	const socketClient = useSocket();
 	const { insert, update } = useEvolu();
-	const { channelId, uuid } = useZustand();
+	const { channel, uuid } = useZustand();
+	const { channelId } = channel;
+
 	const allReactions = useQuery(allReactionsForChannelQuery(channelId));
 	const allMessages = useQuery(messagesQuery());
 

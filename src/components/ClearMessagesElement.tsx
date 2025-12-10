@@ -4,7 +4,8 @@ import { useZustand } from "../hooks/use-zustand";
 import { messagesForChannelQuery } from "../lib/local-first";
 
 export const ClearMessagesElement = () => {
-	const { channelId } = useZustand();
+	const { channel } = useZustand();
+	const { channelId } = channel;
 	const messages = useQuery(messagesForChannelQuery(channelId));
 	const { update } = useEvolu();
 

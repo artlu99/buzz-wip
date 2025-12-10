@@ -16,16 +16,15 @@ const SHOW_CHANNEL_NAME = false;
 
 export const MultiSelectorBlock = () => {
 	const {
-		channelId,
-		encrypted,
-		encryptionKey,
+		channel,
 		user,
 		uuid,
 		setChannelId,
 		setEncryptionKey,
 		setEncrypted,
 	} = useZustand();
-
+	const { channelId, encrypted, encryptionKey } = channel;
+	
 	// Local state for immediate UI feedback
 	const [localChannelId, setLocalChannelId] = useState<string>(channelId);
 	const [localEncryptionKey, setLocalEncryptionKey] = useState<string>(
@@ -103,8 +102,8 @@ export const MultiSelectorBlock = () => {
 	const localChannelIdForQuery = ChannelId.orThrow(
 		createIdFromString(channelId),
 	);
-	const channel = useQuery(channelQuery(localChannelIdForQuery));
-	const channelName = channel?.[0]?.name;
+	const channelData = useQuery(channelQuery(localChannelIdForQuery));
+	const channelName = channelData?.[0]?.name;
 
 	return (
 		<div className="flex flex-col items-center gap-2">

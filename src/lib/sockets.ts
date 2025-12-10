@@ -69,6 +69,7 @@ export interface UserMessageData {
 	bio: string;
 	status: string;
 	notificationChannel: string;
+	autoResponder: boolean;
 }
 
 // TODO: add validation, currently breaks at 1000 chars total JSON object

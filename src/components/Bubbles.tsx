@@ -16,11 +16,12 @@ import {
 	WsMessageType,
 } from "../lib/sockets";
 import { useSocket } from "../providers/SocketProvider";
-import { ClickableDateSpan } from "./ui/ClickableDateSpan";
 import { MessageReactions } from "./MessageReactions";
+import { ClickableDateSpan } from "./ui/ClickableDateSpan";
 
-export const Bubbles = () => {
-	const { uuid, channelId } = useZustand();
+export const	 Bubbles = () => {
+	const { channel, uuid } = useZustand();
+	const { channelId } = channel;
 	const { update } = useEvolu();
 	const socketClient = useSocket();
 

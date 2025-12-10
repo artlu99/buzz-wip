@@ -16,16 +16,18 @@ import { MultiSelectorBlock } from "./components/MultiSelectorBlock";
 import { NavBar } from "./components/NavBar";
 import { OwnerActions } from "./components/OwnerActions";
 import { ProfileEditor } from "./components/ProfileEditor";
+import { AutoResponderToggle } from "./components/ui/AutoResponderToggle";
 import { useZustand } from "./hooks/use-zustand";
 import { evoluInstance } from "./lib/local-first";
 import { DoorbellType, WsMessageType } from "./lib/sockets";
 import PWABadge from "./PWABadge";
+import { AudioProvider } from "./providers/AudioProvider";
 import { useSocket } from "./providers/SocketProvider";
 
 function App() {
 	const socketClient = useSocket();
-	const { channelId, encryptionKey, user, uuid, setRoom, setUuid } =
-		useZustand();
+	const { channel, uuid, setRoom, setUuid } = useZustand();
+	const { channelId } = channel;
 
 	useEffect(() => {
 		const getAppOwner = async () => {
@@ -46,16 +48,15 @@ function App() {
 			message: DoorbellType.OPEN,
 			channelId: channelId,
 		});
+
+		// send a Marco message to everyone to let them know we're here
 		socketClient.safeSend({
 			type: WsMessageType.MARCO_POLO,
 			uuid: uuid,
-			message: {
-				user: user,
-				channel: { id: channelId, publicUselessEncryptionKey: encryptionKey },
-			},
+			message: {},
 			channelId: channelId,
 		});
-	}, [channelId, encryptionKey, socketClient, uuid, user]);
+	}, [channelId, socketClient, uuid]);
 
 	// Send "bye" message when browser/tab closes
 	useEffect(() => {
@@ -93,48 +94,52 @@ function App() {
 	return (
 		<div className="min-h-screen px-8 py-2">
 			<Suspense fallback={<div>Connecting...</div>}>
-				<NavBar />
-				<div className="mx-auto max-w-md">
-					<EvoluProvider value={evoluInstance}>
-						{/* Header */}
-						<div className="mb-2 flex items-center justify-between pb-4">
-							<h1 className="w-full text-start text-xl font-semibold text-gray-900">
-								<Link href="/">
-									<img
-										src="/icon.svg"
-										alt="Buzz"
-										className="w-6 h-6 inline-block align-top mx-2"
-									/>
-									Buzz
-								</Link>
-							</h1>
-							<MultiSelectorBlock />
-						</div>
+				<AudioProvider>
+					<NavBar />
+					<div className="mx-auto max-w-md">
+						<EvoluProvider value={evoluInstance}>
+							{/* Header */}
+							<div className="mb-2 flex items-center justify-between pb-4">
+								<AutoResponderToggle />
+								<h1 className="w-full text-start text-xl font-semibold text-gray-900">
+									<Link href="/">
+										<img
+											src="/icon.svg"
+											alt="Buzz"
+											className="w-6 h-6 inline-block align-top mx-2"
+										/>
+										Buzz
+									</Link>
+								</h1>
 
-						{/* Message handlers */}
-						<TextMessageHandler />
-						<ReactionMessageHandler />
-						<DeleteMessageHandler />
-						<MarcoPoloMessageHandler />
+								<MultiSelectorBlock />
+							</div>
 
-						{/* routes */}
-						<Suspense>
-							<Route path="/">
-								<ClearMessagesElement />
-								<AvailableReactions />
-								<HelloUser />
-								<Bubbles />
-								<TypingIndicators />
-								<MessageSender />
-							</Route>
-							<Route path="/db">
-								<ProfileEditor />
-								<OwnerActions />
-								<AuthActions />
-							</Route>
-						</Suspense>
-					</EvoluProvider>
-				</div>
+							{/* Message handlers */}
+							<TextMessageHandler />
+							<ReactionMessageHandler />
+							<DeleteMessageHandler />
+							<MarcoPoloMessageHandler />
+
+							{/* routes */}
+							<Suspense>
+								<Route path="/">
+									<ClearMessagesElement />
+									<AvailableReactions />
+									<HelloUser />
+									<Bubbles />
+									<TypingIndicators />
+									<MessageSender />
+								</Route>
+								<Route path="/db">
+									<ProfileEditor />
+									<OwnerActions />
+									<AuthActions />
+								</Route>
+							</Suspense>
+						</EvoluProvider>
+					</div>
+				</AudioProvider>
 			</Suspense>
 			<PWABadge />
 		</div>

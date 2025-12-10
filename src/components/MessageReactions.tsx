@@ -29,7 +29,8 @@ export const MessageReactions = ({
 }: MessageReactionsProps) => {
 	const socketClient = useSocket();
 	const { insert, update } = useEvolu();
-	const { channelId, uuid } = useZustand();
+	const { channel, uuid } = useZustand();
+	const { channelId } = channel;
 	const reactionsQueryResult = useQuery(reactionsQuery(messageId));
 	const allReactionsQueryResult = useQuery(allReactionsQuery(messageId));
 

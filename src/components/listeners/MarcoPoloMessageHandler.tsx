@@ -4,7 +4,7 @@ import {
 	String100,
 	String1000,
 } from "@evolu/common";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import invariant from "tiny-invariant";
 import { useZustand } from "../../hooks/use-zustand";
 import { useEvolu } from "../../lib/local-first";
@@ -25,8 +25,7 @@ export const MarcoPoloMessageHandler = () => {
 	const socketClient = useSocket();
 	const { upsert } = useEvolu();
 	const {
-		channelId,
-		encryptionKey,
+		channel,
 		room,
 		uuid,
 		user,
@@ -34,6 +33,8 @@ export const MarcoPoloMessageHandler = () => {
 		setEncryptionKey,
 		setRoom,
 	} = useZustand();
+
+	const { channelId, encryptionKey } = channel;
 
 	// Periodic pruning of stale room entries
 	useEffect(() => {
@@ -46,9 +47,20 @@ export const MarcoPoloMessageHandler = () => {
 		return () => clearInterval(interval);
 	}, [uuid, pruneStaleEntries]);
 
+	const uuidRef = useRef(uuid);
+	uuidRef.current = uuid;
+	const channelIdRef = useRef(channelId);
+	channelIdRef.current = channelId;
+	const userRef = useRef(user);
+	userRef.current = user;
+	const encryptionKeyRef = useRef(encryptionKey);
+	encryptionKeyRef.current = encryptionKey;
+	const roomRef = useRef(room);
+	roomRef.current = room;
+
 	useEffect(() => {
 		// Short-circuit if uuid is missing
-		if (!uuid) return;
+		if (!uuidRef.current) return;
 
 		const handler = (e: WsMessage) => {
 			if (!isMarcoPoloMessage(e.message)) {
@@ -57,23 +69,24 @@ export const MarcoPoloMessageHandler = () => {
 			const payload: MarcoPoloMessage = e.message;
 			invariant(payload.channelId, "Marco Polo message has no channel name");
 
-			if (payload.channelId !== channelId) return;
+			if (payload.channelId !== channelIdRef.current) return;
 
-			// handle Marco messages
+			// respond to Marco messages
 			if (
 				payload.message.user === undefined &&
 				payload.message.channel === undefined
 			) {
 				const iam: UserMessageData = {
-					...user,
+					...userRef.current,
 				};
 				const thisChannel: ChannelData = {
-					id: channelId,
+					id: channelIdRef.current,
 					publicUselessEncryptionKey: encryptionKey,
 				};
 				const message: MarcoPoloMessage = {
 					type: WsMessageType.MARCO_POLO,
-					channelId: channelId,
+					channelId: channelIdRef.current,
+					uuid: uuidRef.current,
 					message: { user: iam, channel: thisChannel },
 				};
 				socketClient.safeSend(message);
@@ -89,7 +102,7 @@ export const MarcoPoloMessageHandler = () => {
 
 			// Update room with latest timestamp for this uuid (Record automatically keeps latest)
 			setRoom({
-				...room,
+				...roomRef.current,
 				[networkUuid]: Date.now(),
 			});
 
@@ -115,11 +128,11 @@ export const MarcoPoloMessageHandler = () => {
 				pfpUrl,
 				bio,
 			});
-			const id = createIdFromString(channelId);
+			const id = createIdFromString(channelIdRef.current);
 			upsert("channel", {
 				id,
 				name: String100.orThrow(
-					payload.message.channel?.name?.slice(0, 100) ?? channelId,
+					payload.message.channel?.name?.slice(0, 100) ?? channelIdRef.current,
 				),
 				description: String1000.orThrow(
 					payload.message.channel?.description?.slice(0, 1000) ?? "",
@@ -137,11 +150,7 @@ export const MarcoPoloMessageHandler = () => {
 		socketClient.on(WsMessageType.MARCO_POLO, handler);
 	}, [
 		socketClient,
-		channelId,
 		encryptionKey,
-		room,
-		uuid,
-		user,
 		pruneStaleEntries,
 		setEncryptionKey,
 		setRoom,

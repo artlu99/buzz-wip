@@ -4,23 +4,27 @@ import { combine, createJSONStorage, persist } from "zustand/middleware";
 import type { UserMessageData } from "../lib/sockets";
 
 export const useZustand = create(persist(combine({
-	channelId: NonEmptyString100.orThrow("buzz-54321"),
-	encrypted: false,
-	encryptionKey: undefined as string | undefined,
+	channel: {
+		channelId: NonEmptyString100.orThrow("buzz-54321"),
+		encrypted: false,
+		encryptionKey: undefined as string | undefined
+	},
 	user: {
 		displayName: "Anonymous Bee 🐝",
 		pfpUrl: "",
 		bio: "",
 		status: "",
 		notificationChannel: "",
+		autoResponder: false
 	} as UserMessageData,
+	playSounds: false,
 	room: {} as Record<string, number>, // uuid -> unixTimestamp
 	uuid: undefined as OwnerId | undefined
 }, (set, get) => (
 	{
-		setChannelId: (channelId: NonEmptyString100) => set({ channelId }),
-		setEncrypted: (encrypted: boolean) => set({ encrypted }),
-		setEncryptionKey: (encryptionKey: string | undefined) => set({ encryptionKey }),
+		setChannelId: (channelId: NonEmptyString100) => set({ channel: { ...get().channel, channelId } }),
+		setEncrypted: (encrypted: boolean) => set({ channel: { ...get().channel, encrypted } }),
+		setEncryptionKey: (encryptionKey: string | undefined) => set({ channel: { ...get().channel, encryptionKey } }),
 		setUser: (
 			displayName: string,
 			pfpUrl: string = "",
@@ -28,8 +32,10 @@ export const useZustand = create(persist(combine({
 			status: string = "",
 			notificationChannel: string = "",
 		) => set(
-			{ user: { displayName, pfpUrl, bio, status, notificationChannel } }
+			{ user: { ...get().user, displayName, pfpUrl, bio, status, notificationChannel } }
 		),
+		toggleAutoResponder: () => set({ user: { ...get().user, autoResponder: !get().user.autoResponder } }),
+		togglePlaySounds: () => set({ playSounds: !get().playSounds }),
 		setRoom: (room: Record<string, number>) => set({ room: { ...room } }),
 		setUuid: (uuid: OwnerId | undefined) => set(
 			{ uuid }

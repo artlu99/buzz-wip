@@ -1,6 +1,7 @@
 import { NonEmptyString100 } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useEffect, useState } from "react";
+import { useZustand } from "../../hooks/use-zustand";
 import { userQuery } from "../../lib/local-first";
 import {
 	type DoorbellMessage,
@@ -14,6 +15,7 @@ import { useSocket } from "../../providers/SocketProvider";
 export const HelloUser = () => {
 	const [hello, setHello] = useState<WsMessage | null>(null);
 	const socketClient = useSocket();
+	const { room, setRoom } = useZustand();
 
 	useEffect(() => {
 		socketClient.on(WsMessageType.DOORBELL, (e: WsMessage) => {
@@ -24,11 +26,21 @@ export const HelloUser = () => {
 
 			if (payload.message === DoorbellType.OPEN) {
 				setHello(e);
+				if (payload.uuid) {
+					setRoom({ ...room, [payload.uuid]: Date.now() });
+				}
 			} else if (payload.message === DoorbellType.CLOSE) {
 				setHello(null);
+				if (payload.uuid) {
+					setRoom(
+						Object.fromEntries(
+							Object.entries(room).filter(([uuid]) => uuid !== payload.uuid),
+						),
+					);
+				}
 			}
 		});
-	}, [socketClient]);
+	}, [room, socketClient, setRoom]);
 
 	const payload = hello?.message as DoorbellMessage | undefined;
 	const uuid = payload?.uuid;

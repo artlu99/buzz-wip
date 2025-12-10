@@ -5,7 +5,8 @@ import { DoorbellType, TypedWsClient, WsMessageType } from "../lib/sockets";
 const SocketContext = createContext<TypedWsClient | null>(null);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-	const { channelId, uuid } = useZustand();
+	const { channel, uuid } = useZustand();
+	const { channelId } = channel;
 	// Create socket client synchronously on initial mount if in browser
 	const [socketClient, setSocketClient] = useState<TypedWsClient | null>(() => {
 		if (typeof window === "undefined" || typeof document === "undefined") {

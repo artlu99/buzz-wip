@@ -22,7 +22,8 @@ import { TextEntry } from "./ui/TextEntry";
 
 export const MessageSender = () => {
 	const { insert, update } = useEvolu();
-	const { channelId, encrypted, encryptionKey, user, uuid } = useZustand();
+	const { channel, user, uuid } = useZustand();
+	const { channelId, encrypted, encryptionKey } = channel;
 	const socketClient = useSocket();
 
 	const handleTyping = () => {

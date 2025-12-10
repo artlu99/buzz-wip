@@ -26,7 +26,8 @@ import { useSocket } from "../../providers/SocketProvider";
 export const TextMessageHandler = () => {
 	const socketClient = useSocket();
 	const { insert, upsert } = useEvolu();
-	const { channelId, encryptionKey, uuid } = useZustand();
+	const { channel, uuid } = useZustand();
+	const { channelId, encryptionKey } = channel;
 
 	const allMessages = useQuery(messagesForChannelQuery(channelId));
 	const allMessagesRef = useRef(allMessages);
