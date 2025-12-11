@@ -12,8 +12,10 @@ export const OwnerProfile: FC<{
 		<div className="flex justify-between gap-3">
 			<div className="flex items-center gap-3">
 				<EvoluIdenticon id={ownerId} size={24} style={chosenIdenticonStyle} />
-				<span className="text-sm font-medium text-gray-900">{username}</span>
-				<span className="text-xs text-gray-500 italic">{ownerId}</span>
+				<span className="text-sm font-medium text-base-content">
+					{username}
+				</span>
+				<span className="text-xs text-base-content/50 italic">{ownerId}</span>
 			</div>
 			{handleLoginClick && (
 				<button

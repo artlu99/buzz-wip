@@ -8,7 +8,7 @@ export const HelpPage = () => {
 	return (
 		<div className="prose prose-sm max-w-none py-4">
 			<div className="mb-6">
-				<p className="text-gray-600">
+				<p className="text-base-content/70">
 					Buzz is <strong>an ephemeral messaging app</strong> for public and
 					private messages that never touch a central server. Your information
 					stays local and private, while becoming local and private to others
@@ -22,7 +22,7 @@ export const HelpPage = () => {
 						<i className="ph-bold ph-question"></i>
 						Tips & Tricks
 					</h2>
-					<div className="space-y-2 text-gray-700">
+					<div className="space-y-2 text-base-content/80">
 						<ul className="list-disc list-inside space-y-1 ml-4">
 							<li>Use the same room ID with friends to create group chats</li>
 							<li>
@@ -43,7 +43,7 @@ export const HelpPage = () => {
 						<i className="ph-bold ph-chat-circle" />
 						Getting Started
 					</h2>
-					<div className="space-y-2 text-gray-700">
+					<div className="space-y-2 text-base-content/80">
 						<p>
 							Buzz organizes conversations into <strong>Rooms</strong>. You are
 							in the "{channelId}" room. Switch rooms by typing a name at the
@@ -66,7 +66,7 @@ export const HelpPage = () => {
 						<i className="ph-bold ph-cloud-slash" />
 						Hidden Conversations
 					</h2>
-					<div className="space-y-2 text-gray-700">
+					<div className="space-y-2 text-base-content/80">
 						<p>
 							When you choose to be hidden, your messages are encrypted with a
 							shared key.
@@ -106,7 +106,7 @@ export const HelpPage = () => {
 						<i className="ph-bold ph-robot"></i>
 						Auto Responder
 					</h2>
-					<div className="space-y-2 text-gray-700">
+					<div className="space-y-2 text-base-content/80">
 						<p>
 							The Auto Responder feature uses a "Marco Polo" mechanism to
 							automatically share recent messages with new joiners in a room.
@@ -132,7 +132,7 @@ export const HelpPage = () => {
 						<i className="ph-bold ph-database"></i>
 						Local-First Architecture
 					</h2>
-					<div className="space-y-2 text-gray-700">
+					<div className="space-y-2 text-base-content/80">
 						<p>
 							Buzz is built with a local-first approach. All your messages,
 							reactions, and user data are stored locally on your device. This
@@ -154,7 +154,7 @@ export const HelpPage = () => {
 						<i className="ph-bold ph-warning"></i>
 						Technical Considerations
 					</h2>
-					<div className="space-y-2 text-gray-700">
+					<div className="space-y-2 text-base-content/80">
 						<p>
 							We use secure websockets (wss) on the public{" "}
 							<a
@@ -200,7 +200,7 @@ export const HelpPage = () => {
 						<i className="ph-bold ph-code"></i>
 						Open Source
 					</h2>
-					<div className="space-y-2 text-gray-700">
+					<div className="space-y-2 text-base-content/80">
 						<p>
 							<strong>Buzz</strong> is open source and available on{" "}
 							<a

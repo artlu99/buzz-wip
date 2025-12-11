@@ -55,8 +55,8 @@ export const OwnerActions = () => {
 	};
 
 	return (
-		<div className="mt-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-200">
-			<h2 className="mb-4 text-lg font-medium text-gray-900">Owner</h2>
+		<div className="mt-8 rounded-lg bg-base-100 p-6 shadow-sm ring-1 ring-base-300">
+			<h2 className="mb-4 text-lg font-medium text-base-content">Owner</h2>
 			{appOwner && (
 				<div className="mb-4 flex items-center justify-between gap-3">
 					<OwnerProfile
@@ -67,7 +67,7 @@ export const OwnerActions = () => {
 					/>
 				</div>
 			)}
-			<p className="mb-4 text-sm text-gray-600">
+			<p className="mb-4 text-sm text-base-content/70">
 				Messages are stored in local SQLite. When you sync across devices, your
 				data is end-to-end encrypted using your mnemonic.
 			</p>
@@ -82,10 +82,10 @@ export const OwnerActions = () => {
 				>{`${showMnemonic ? "Hide" : "Show"} Mnemonic`}</button>
 
 				{showMnemonic && appOwner?.mnemonic && (
-					<div className="bg-gray-50 p-3">
+					<div className="bg-base-200 p-3">
 						<label
 							htmlFor="mnemonic"
-							className="mb-2 block text-xs font-medium text-gray-700"
+							className="mb-2 block text-xs font-medium text-base-content/80"
 						>
 							Your Mnemonic (keep this safe!)
 						</label>
@@ -93,12 +93,12 @@ export const OwnerActions = () => {
 							value={appOwner.mnemonic}
 							readOnly
 							rows={3}
-							className="w-full border-b border-gray-300 bg-white px-2 py-1 font-mono text-xs focus:border-blue-500 focus:outline-none"
+							className="w-full border-b border-base-300 bg-base-100 px-2 py-1 font-mono text-xs focus:border-primary focus:outline-none"
 						/>
 					</div>
 				)}
 
-				<div className="flex w-full gap-2">
+				<div className="flex flex-col sm:flex-row w-full gap-2">
 					<button
 						type="button"
 						className="btn btn-soft flex-1"

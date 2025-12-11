@@ -130,8 +130,8 @@ export const ProfileEditor = () => {
 
 	if (!networkUuid) {
 		return (
-			<div className="mt-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-200">
-				<p className="text-sm text-gray-600">
+			<div className="mt-8 rounded-lg bg-base-100 p-6 shadow-sm ring-1 ring-base-300">
+				<p className="text-sm text-base-content/70">
 					Please log in to edit your profile.
 				</p>
 			</div>
@@ -139,8 +139,8 @@ export const ProfileEditor = () => {
 	}
 
 	return (
-		<div className="mt-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-200">
-			<h2 className="mb-4 text-lg font-medium text-gray-900">Profile</h2>
+		<div className="mt-8 rounded-lg bg-base-100 p-6 shadow-sm ring-1 ring-base-300">
+			<h2 className="mb-4 text-lg font-medium text-base-content">Profile</h2>
 
 			<div className="space-y-4">
 				{/* Profile Picture */}
@@ -150,10 +150,10 @@ export const ProfileEditor = () => {
 							<img
 								src={pfpUrl}
 								alt="Profile"
-								className="h-20 w-20 rounded-full object-cover ring-2 ring-gray-200"
+								className="h-20 w-20 rounded-full object-cover ring-2 ring-base-300"
 							/>
 						) : (
-							<div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-200 text-gray-500">
+							<div className="flex h-20 w-20 items-center justify-center rounded-full bg-base-200 text-base-content/50">
 								No Image
 							</div>
 						)}
@@ -163,15 +163,17 @@ export const ProfileEditor = () => {
 								id="pfp"
 								accept="image/*"
 								onChange={handleFileChange}
-								className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+								className="block w-full text-sm text-base-content/50 file:mr-4 file:rounded-md file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20"
 							/>
-							<p className="mt-1 text-xs text-gray-500">Or enter a URL:</p>
+							<p className="mt-1 text-xs text-base-content/50">
+								Or enter a URL:
+							</p>
 							<input
 								type="url"
 								value={pfpUrl}
 								onChange={(e) => setPfpUrl(e.target.value)}
 								placeholder="https://example.com/image.jpg"
-								className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+								className="mt-1 block w-full rounded-md border-base-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
 							/>
 						</div>
 					</div>
@@ -181,7 +183,7 @@ export const ProfileEditor = () => {
 				<div>
 					<label
 						htmlFor="displayName"
-						className="mb-2 block text-sm font-medium text-gray-700"
+						className="mb-2 block text-sm font-medium text-base-content/80"
 					>
 						Display Name
 					</label>
@@ -192,7 +194,7 @@ export const ProfileEditor = () => {
 						onChange={(e) => setDisplayName(e.target.value)}
 						maxLength={100}
 						placeholder="Enter your display name"
-						className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+						className="block w-full rounded-md border-base-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
 					/>
 				</div>
 
@@ -200,7 +202,7 @@ export const ProfileEditor = () => {
 				<div>
 					<label
 						htmlFor="bio"
-						className="mb-2 block text-sm font-medium text-gray-700"
+						className="mb-2 block text-sm font-medium text-base-content/80"
 					>
 						Bio
 					</label>
@@ -211,9 +213,9 @@ export const ProfileEditor = () => {
 						maxLength={1000}
 						rows={4}
 						placeholder="Tell us about yourself..."
-						className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+						className="block w-full rounded-md border-base-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
 					/>
-					<p className="mt-1 text-xs text-gray-500">
+					<p className="mt-1 text-xs text-base-content/50">
 						{bio.length}/1000 characters
 					</p>
 				</div>

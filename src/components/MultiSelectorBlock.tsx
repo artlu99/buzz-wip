@@ -45,7 +45,7 @@ export const MultiSelectorBlock = () => {
 		if (uuid && !encrypted) {
 			toast.success("My messages will be broadcast to everyone", {
 				position: "bottom-center",
-				icon: <i className="ph-bold ph-megaphone text-green-500" />,
+				icon: <i className="ph-bold ph-megaphone text-success" />,
 			});
 		}
 	}, [encrypted, uuid]);
@@ -103,7 +103,7 @@ export const MultiSelectorBlock = () => {
 	return (
 		<div className="flex flex-col items-center gap-2">
 			{/* User's display name */}
-			<p className="text-sm text-gray-500">
+			<p className="text-sm text-base-content/50">
 				<Link href="/db">{user?.displayName}</Link>
 			</p>
 
@@ -122,12 +122,12 @@ export const MultiSelectorBlock = () => {
 					<div className="relative">
 						<button
 							type="button"
-							className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+							className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-base-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
 							onClick={() => setEncrypted(!encrypted)}
 							disabled={!uuid || !localEncryptionKey}
 						>
 							<i
-								className={`ph-bold ${encrypted ? "ph-cloud-slash" : "ph-megaphone"} text-gray-500`}
+								className={`ph-bold ${encrypted ? "ph-cloud-slash" : "ph-megaphone"} text-base-content/50`}
 							/>
 						</button>
 						<input
@@ -140,17 +140,17 @@ export const MultiSelectorBlock = () => {
 					</div>
 
 					{/* Encryption key specification */}
-					<div className="relative text-sm text-gray-500">
+					<div className="relative text-sm text-base-content/50">
 						<button
 							type="button"
-							className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+							className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-base-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
 							onClick={() => setShowEncryptionKey(!showEncryptionKey)}
 							title={showEncryptionKey ? "Hide key" : "Show key"}
 						>
 							<i
 								className={`ph-bold ${
 									showEncryptionKey ? "ph-eye-slash" : "ph-eye"
-								} text-gray-500`}
+								} text-base-content/50`}
 							/>
 						</button>
 						<input
@@ -164,20 +164,20 @@ export const MultiSelectorBlock = () => {
 						{localEncryptionKey ? (
 							<button
 								type="button"
-								className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+								className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-base-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
 								onClick={handleEncryptionKeyClear}
 								disabled={!localEncryptionKey}
 								title="Clear key"
 							>
-								<i className="ph-bold ph-x text-gray-500" />
+								<i className="ph-bold ph-x text-base-content/50" />
 							</button>
 						) : (
 							<button
 								type="button"
-								className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+								className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-base-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
 								onClick={handleEncryptionKeyCreate}
 							>
-								<i className="ph-bold ph-plus text-gray-500" />
+								<i className="ph-bold ph-plus text-base-content/50" />
 							</button>
 						)}
 					</div>

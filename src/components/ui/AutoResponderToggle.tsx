@@ -13,7 +13,7 @@ export const AutoResponderToggle = () => {
 	return (
 		<span>
 			<i
-				className={`ph-bold ph-robot text-xl ${user.autoResponder ? "text-primary/70" : "text-primary/30"} align-middle mr-2`}
+				className={`ph-bold ph-robot text-xl ${user.autoResponder ? "text-primary" : "text-base-content/40"} align-middle mr-2`}
 			/>
 			<label className="toggle text-base-content mr-4">
 				<input

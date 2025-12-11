@@ -80,9 +80,9 @@ export const AuthActions = () => {
 	};
 
 	return (
-		<div className="mt-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-200">
-			<h2 className="mb-4 text-lg font-medium text-gray-900">Passkeys</h2>
-			<p className="mb-4 text-sm text-gray-600">
+		<div className="mt-8 rounded-lg bg-base-100 p-6 shadow-sm ring-1 ring-base-300">
+			<h2 className="mb-4 text-lg font-medium text-base-content">Passkeys</h2>
+			<p className="mb-4 text-sm text-base-content/70">
 				Register a new passkey or choose a previously registered one.
 			</p>
 			<div className="flex gap-3">

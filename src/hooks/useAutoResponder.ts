@@ -60,6 +60,10 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
     const reactionsRef = useRef(reactions);
     reactionsRef.current = reactions;
 
+    // Track messages scheduled to send (prevents race conditions when multiple Marco messages arrive)
+    // Key: networkMessageId or reactionKey, Value: timestamp when scheduled
+    const scheduledMessagesRef = useRef(new Set<string>());
+
     // Debug logging for query results
     useEffect(() => {
         console.log("[AUTORESPONDER] Query results updated:", {
@@ -117,8 +121,6 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 channelId: payload.channelId,
             });
 
-            // Note: Idempotency filtering happens per-message during sending
-
             // Calculate random delay
             const delay = calculateRandomDelay(0, 500);
 
@@ -128,11 +130,122 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 return;
             }
 
+            // CRITICAL: Pre-filter messages for idempotency IMMEDIATELY when scheduling
+            // This prevents race conditions when multiple Marco messages arrive quickly
+            // We check idempotency and record messages as "scheduled" before the timeout
+            const messageMap = new Map(
+                currentTextMessages.map((m) => [m.id, m]),
+            );
+
+            // Collect messages to send (checking idempotency immediately)
+            type MessageToSend =
+                | { type: "text"; message: TextMessage; networkMessageId: string }
+                | { type: "delete"; message: DeleteMessage; networkMessageId: string }
+                | { type: "reaction"; message: ReactionMessage; networkMessageId: string };
+            const messagesToSend: MessageToSend[] = [];
+
+            // Process TEXT messages - check idempotency IMMEDIATELY
+            for (const dbMessage of currentTextMessages) {
+                if (!dbMessage.networkMessageId) {
+                    continue;
+                }
+
+                // Check idempotency: already heard, already sent, or already scheduled
+                if (
+                    state.hasHeardMessage(dbMessage.networkMessageId, 10000) ||
+                    state.hasSentMessage(dbMessage.networkMessageId, 10000) ||
+                    scheduledMessagesRef.current.has(dbMessage.networkMessageId)
+                ) {
+                    continue;
+                }
+
+                // Mark as scheduled immediately to prevent duplicates
+                scheduledMessagesRef.current.add(dbMessage.networkMessageId);
+
+                if (dbMessage.isDeleted === sqliteTrue) {
+                    // Send DELETE message
+                    const deleteMsg = reconstructDeleteMessage(
+                        dbMessage.networkMessageId,
+                        NonEmptyString100.orThrow(channelId.slice(0, 100)),
+                        dbMessage.createdBy ?? undefined,
+                    );
+                    messagesToSend.push({
+                        type: "delete",
+                        message: deleteMsg,
+                        networkMessageId: dbMessage.networkMessageId,
+                    });
+                } else {
+                    // Reconstruct TEXT message
+                    const textMsg = reconstructTextMessage(
+                        dbMessage,
+                        NonEmptyString100.orThrow(channelId.slice(0, 100)),
+                        encryptionKey,
+                        encrypted,
+                    );
+                    if (textMsg) {
+                        messagesToSend.push({
+                            type: "text",
+                            message: textMsg,
+                            networkMessageId: dbMessage.networkMessageId,
+                        });
+                    }
+                }
+            }
+
+            // Process REACTION messages - check idempotency IMMEDIATELY
+            for (const dbReaction of currentReactions) {
+                // Skip if messageId is null
+                if (!dbReaction.messageId) {
+                    continue;
+                }
+                const associatedMessage = messageMap.get(dbReaction.messageId);
+                if (!associatedMessage) {
+                    // Message not in set - skip this reaction
+                    continue;
+                }
+
+                // Check idempotency (use networkMessageId + createdBy + reaction + isDeleted as key)
+                const reactionKey = `${associatedMessage.networkMessageId}:${dbReaction.createdBy}:${dbReaction.reaction}:${dbReaction.isDeleted === sqliteTrue}`;
+                if (
+                    state.hasHeardMessage(reactionKey, 10000) ||
+                    state.hasSentMessage(reactionKey, 10000) ||
+                    scheduledMessagesRef.current.has(reactionKey)
+                ) {
+                    continue;
+                }
+
+                // Mark as scheduled immediately to prevent duplicates
+                scheduledMessagesRef.current.add(reactionKey);
+
+                // Reconstruct REACTION message
+                const reactionMsg = reconstructReactionMessage(
+                    dbReaction,
+                    associatedMessage.networkMessageId,
+                    NonEmptyString100.orThrow(channelId.slice(0, 100)),
+                );
+                if (reactionMsg) {
+                    messagesToSend.push({
+                        type: "reaction",
+                        message: reactionMsg,
+                        networkMessageId: associatedMessage.networkMessageId,
+                    });
+                }
+            }
+
+            // If no messages to send, don't schedule a timeout
+            if (messagesToSend.length === 0) {
+                console.log("[AUTORESPONDER] No messages to send (all filtered by idempotency)");
+                return;
+            }
+
             const timeoutId = setTimeout(() => {
                 // Double-check we should still respond (might have been cancelled)
                 const scheduledTimeout = state.cancelAutoresponse(marcoUuid);
                 if (!scheduledTimeout) {
-                    // Was cancelled
+                    // Was cancelled - remove from scheduled set
+                    for (const msg of messagesToSend) {
+                        scheduledMessagesRef.current.delete(msg.networkMessageId);
+                    }
                     return;
                 }
 
@@ -142,110 +255,15 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                     state.updateCooldown(marcoUuid);
                 }
 
-                // Re-read messages and reactions in case they've updated during the delay
-                const latestTextMessages = textMessagesRef.current ?? [];
-                const latestReactions = reactionsRef.current ?? [];
-
                 console.log("[AUTORESPONDER] Sending catch-up messages:", {
-                    textMessagesCount: latestTextMessages.length,
-                    reactionsCount: latestReactions.length,
+                    textMessagesCount: messagesToSend.length,
                 });
 
-                const messageMap = new Map(
-                    latestTextMessages.map((m) => [m.id, m]),
-                );
-
-                // Collect all messages to send (for batching)
-                type MessageToSend =
-                    | { type: "text"; message: TextMessage; networkMessageId: string }
-                    | { type: "delete"; message: DeleteMessage; networkMessageId: string }
-                    | { type: "reaction"; message: ReactionMessage; networkMessageId: string };
-                const messagesToSend: MessageToSend[] = [];
-
-                // Process TEXT messages
-                for (const dbMessage of latestTextMessages) {
-                    if (!dbMessage.networkMessageId) {
-                        continue;
-                    }
-
-                    // Check idempotency again (might have heard it during delay)
-                    if (
-                        state.hasHeardMessage(dbMessage.networkMessageId, 10000) ||
-                        state.hasSentMessage(dbMessage.networkMessageId, 10000)
-                    ) {
-                        continue;
-                    }
-
-                    if (dbMessage.isDeleted === sqliteTrue) {
-                        // Send DELETE message
-                        // Include the original message creator's UUID for authorization
-                        const deleteMsg = reconstructDeleteMessage(
-                            dbMessage.networkMessageId,
-                            NonEmptyString100.orThrow(channelId.slice(0, 100)),
-                            dbMessage.createdBy ?? undefined,
-                        );
-                        messagesToSend.push({
-                            type: "delete",
-                            message: deleteMsg,
-                            networkMessageId: dbMessage.networkMessageId,
-                        });
-                        state.recordSentMessage(dbMessage.networkMessageId);
-                    } else {
-                        // Reconstruct TEXT message
-                        const textMsg = reconstructTextMessage(
-                            dbMessage,
-                            NonEmptyString100.orThrow(channelId.slice(0, 100)),
-                            encryptionKey,
-                            encrypted,
-                        );
-                        if (textMsg) {
-                            messagesToSend.push({
-                                type: "text",
-                                message: textMsg,
-                                networkMessageId: dbMessage.networkMessageId,
-                            });
-                            state.recordSentMessage(dbMessage.networkMessageId);
-                        }
-                    }
-                }
-
-                // Process REACTION messages
-                for (const dbReaction of latestReactions) {
-                    // Skip if messageId is null
-                    if (!dbReaction.messageId) {
-                        continue;
-                    }
-                    // messageId is guaranteed non-null after the check above
-                    const associatedMessage = messageMap.get(dbReaction.messageId);
-                    if (!associatedMessage) {
-                        // Message not in set - skip this reaction
-                        continue;
-                    }
-
-                    // Check idempotency (use networkMessageId + createdBy + reaction + isDeleted as key)
-                    // This ensures we distinguish between reactions from different users and deleted vs active reactions
-                    const reactionKey = `${associatedMessage.networkMessageId}:${dbReaction.createdBy}:${dbReaction.reaction}:${dbReaction.isDeleted === sqliteTrue}`;
-                    if (
-                        state.hasHeardMessage(reactionKey, 10000) ||
-                        state.hasSentMessage(reactionKey, 10000)
-                    ) {
-                        continue;
-                    }
-
-                    // Reconstruct REACTION message
-                    const reactionMsg = reconstructReactionMessage(
-                        dbReaction,
-                        associatedMessage.networkMessageId,
-                        NonEmptyString100.orThrow(channelId.slice(0, 100)),
-                    );
-                    if (reactionMsg) {
-                        messagesToSend.push({
-                            type: "reaction",
-                            message: reactionMsg,
-                            networkMessageId: associatedMessage.networkMessageId,
-                        });
-                        state.recordSentMessage(reactionKey);
-                    }
+                // Record messages as sent (they were already marked as scheduled)
+                for (const msg of messagesToSend) {
+                    state.recordSentMessage(msg.networkMessageId);
+                    // Remove from scheduled set (now in sentByUsRef)
+                    scheduledMessagesRef.current.delete(msg.networkMessageId);
                 }
 
                 // Send messages in batches to avoid network flooding

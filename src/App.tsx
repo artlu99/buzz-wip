@@ -27,7 +27,6 @@ import PWABadge from "./PWABadge";
 import { AudioProvider } from "./providers/AudioProvider";
 import { useSocket } from "./providers/SocketProvider";
 
-
 function App() {
 	const socketClient = useSocket();
 	const { channel, uuid, setRoom, setUuid } = useZustand();
@@ -48,16 +47,30 @@ function App() {
 	// Max 50 entries with 2s TTL - automatically evicts expired entries
 	// Key: `${channelId}:${uuid}`, Value: timestamp (not used, just for existence check)
 	const marcoMessageCacheRef = useRef(lru<number>(50, 2000, true)); // max=50, ttl=2s, resetTtl=true
+	// Track if Marco message is currently being sent (prevents race conditions during rapid re-renders)
+	const sendingMarcoRef = useRef(false);
 
 	useEffect(() => {
 		if (!uuid) return;
 
 		// Prevent duplicate Marco messages using LRU cache with TTL
 		const cacheKey = `${channelId}:${uuid}`;
+
+		// Check cache first
 		if (marcoMessageCacheRef.current.get(cacheKey) !== undefined) {
 			console.log("[APP] Skipping duplicate Marco message (within TTL)");
 			return;
 		}
+
+		// Check if we're already sending (prevents race condition during rapid re-renders)
+		if (sendingMarcoRef.current) {
+			console.log("[APP] Skipping duplicate Marco message (already sending)");
+			return;
+		}
+
+		// Mark as sending immediately to prevent duplicates
+		sendingMarcoRef.current = true;
+		marcoMessageCacheRef.current.set(cacheKey, Date.now());
 
 		socketClient.safeSend({
 			type: WsMessageType.DOORBELL,
@@ -74,8 +87,11 @@ function App() {
 			channelId: channelId,
 		});
 
-		// Store in cache (TTL handles expiration automatically)
-		marcoMessageCacheRef.current.set(cacheKey, Date.now());
+		// Reset sending flag after a short delay (allows cache to be effective)
+		// The cache TTL will handle longer-term deduplication
+		setTimeout(() => {
+			sendingMarcoRef.current = false;
+		}, 100);
 	}, [channelId, socketClient, uuid]);
 
 	// Send "bye" message when browser/tab closes
@@ -120,12 +136,12 @@ function App() {
 						<EvoluProvider value={evoluInstance}>
 							{/* Header */}
 							<div className="mb-2 flex items-center justify-between pb-4">
-								<h1 className="w-full text-start text-xl font-semibold text-gray-900">
+								<h1 className="w-full text-start text-xl font-semibold text-base-content">
 									<Link href="/">
 										<img
 											src="/icon.svg"
 											alt="Buzz"
-											className="w-6 h-6 inline-block align-top mx-2"
+											className="w-6 h-6 inline-block align-top mx-2 dark:invert"
 										/>
 										Buzz
 									</Link>

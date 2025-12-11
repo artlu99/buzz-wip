@@ -51,7 +51,7 @@ const reactionTypeToColor: Record<ReactionType, string> = {
 	[ReactionType.CUBE]: "text-info",
 	[ReactionType.LIKE]: "text-error",
 	[ReactionType.LOL]: "text-warning",
-	[ReactionType.CUSTOM]: "text-neutral/30",
+	[ReactionType.CUSTOM]: "text-base-content/30",
 };
 
 export const reactionTypeData = (

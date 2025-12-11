@@ -80,7 +80,7 @@ export const Bubbles = () => {
 		const isMine = item.createdBy === uuid;
 		const isEven = index % 2 === 0;
 
-		const timestamp = new Date(item.createdAt).getTime();
+		const timestamp = Number(item.networkTimestamp);
 		const ownerId = OwnerId.orThrow(item.createdBy);
 
 		const validator = UserMessageDataSchema.safeParse(
