@@ -76,6 +76,7 @@ export const MessageReactions = ({
 				update("reaction", {
 					id: existingReaction.id,
 					isDeleted: sqliteFalse,
+					networkTimestamp: Date.now().toString(),
 				});
 			} else {
 				insert("reaction", {
@@ -83,15 +84,16 @@ export const MessageReactions = ({
 					reaction: reactionString,
 					channelId: channelId,
 					createdBy: uuid,
+					networkTimestamp: Date.now().toString(),
 				});
 			}
 		}
-
 		// Send websocket message using networkMessageId for matching across distributed stores
 		const reactionMessage: ReactionMessage = {
 			uuid: uuid,
 			type: WsMessageType.REACTION,
 			networkMessageId: networkMessageId,
+			networkTimestamp: Date.now().toString(),
 			reaction: reactionString,
 			channelId: channelId,
 			isDeleted: isDeleted,

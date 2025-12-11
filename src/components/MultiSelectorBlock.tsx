@@ -15,21 +15,16 @@ import { ChannelId, channelQuery } from "../lib/local-first";
 const SHOW_CHANNEL_NAME = false;
 
 export const MultiSelectorBlock = () => {
-	const {
-		channel,
-		user,
-		uuid,
-		setChannelId,
-		setEncryptionKey,
-		setEncrypted,
-	} = useZustand();
+	const { channel, user, uuid, setChannelId, setEncryptionKey, setEncrypted } =
+		useZustand();
 	const { channelId, encrypted, encryptionKey } = channel;
-	
+
 	// Local state for immediate UI feedback
 	const [localChannelId, setLocalChannelId] = useState<string>(channelId);
 	const [localEncryptionKey, setLocalEncryptionKey] = useState<string>(
 		encryptionKey ?? "",
 	);
+	const [showEncryptionKey, setShowEncryptionKey] = useState<boolean>(true);
 
 	// Sync local state when Zustand state changes externally
 	useEffect(() => {
@@ -42,13 +37,13 @@ export const MultiSelectorBlock = () => {
 
 	useEffect(() => {
 		if (uuid && encrypted) {
-			toast.success("New messages will be encrypted", {
+			toast.success("My messages will be encrypted", {
 				position: "bottom-center",
 				icon: <i className="ph-bold ph-lock" />,
 			});
 		}
 		if (uuid && !encrypted) {
-			toast.success("New messages broadcast to everyone", {
+			toast.success("My messages will be broadcast to everyone", {
 				position: "bottom-center",
 				icon: <i className="ph-bold ph-megaphone text-green-500" />,
 			});
@@ -146,31 +141,43 @@ export const MultiSelectorBlock = () => {
 
 					{/* Encryption key specification */}
 					<div className="relative text-sm text-gray-500">
+						<button
+							type="button"
+							className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+							onClick={() => setShowEncryptionKey(!showEncryptionKey)}
+							title={showEncryptionKey ? "Hide key" : "Show key"}
+						>
+							<i
+								className={`ph-bold ${
+									showEncryptionKey ? "ph-eye-slash" : "ph-eye"
+								} text-gray-500`}
+							/>
+						</button>
 						<input
-							id="channel-name"
-							className="input input-ghost pr-10"
-							type="text"
+							id="encryption-key"
+							className="input input-ghost px-8"
+							type={showEncryptionKey ? "text" : "password"}
 							value={localEncryptionKey}
 							placeholder="No shared key"
 							onChange={(e) => handleEncryptionKeyChange(e.target.value)}
 						/>
-						{!localEncryptionKey && (
+						{localEncryptionKey ? (
+							<button
+								type="button"
+								className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+								onClick={handleEncryptionKeyClear}
+								disabled={!localEncryptionKey}
+								title="Clear key"
+							>
+								<i className="ph-bold ph-x text-gray-500" />
+							</button>
+						) : (
 							<button
 								type="button"
 								className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
 								onClick={handleEncryptionKeyCreate}
 							>
 								<i className="ph-bold ph-plus text-gray-500" />
-							</button>
-						)}
-						{localEncryptionKey && (
-							<button
-								type="button"
-								className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-								onClick={handleEncryptionKeyClear}
-								disabled={!localEncryptionKey}
-							>
-								<i className="ph-bold ph-x text-gray-500" />
 							</button>
 						)}
 					</div>

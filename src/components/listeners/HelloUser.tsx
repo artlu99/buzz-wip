@@ -15,7 +15,7 @@ import { useSocket } from "../../providers/SocketProvider";
 export const HelloUser = () => {
 	const [hello, setHello] = useState<WsMessage | null>(null);
 	const socketClient = useSocket();
-	const { room, setRoom } = useZustand();
+	const { setRoom } = useZustand();
 
 	useEffect(() => {
 		socketClient.on(WsMessageType.DOORBELL, (e: WsMessage) => {
@@ -27,20 +27,24 @@ export const HelloUser = () => {
 			if (payload.message === DoorbellType.OPEN) {
 				setHello(e);
 				if (payload.uuid) {
-					setRoom({ ...room, [payload.uuid]: Date.now() });
+					const currentRoom = useZustand.getState().room;
+					setRoom({ ...currentRoom, [payload.uuid]: Date.now() });
 				}
 			} else if (payload.message === DoorbellType.CLOSE) {
 				setHello(null);
 				if (payload.uuid) {
+					const currentRoom = useZustand.getState().room;
 					setRoom(
 						Object.fromEntries(
-							Object.entries(room).filter(([uuid]) => uuid !== payload.uuid),
+							Object.entries(currentRoom).filter(
+								([uuid]) => uuid !== payload.uuid,
+							),
 						),
 					);
 				}
 			}
 		});
-	}, [room, socketClient, setRoom]);
+	}, [socketClient, setRoom]);
 
 	const payload = hello?.message as DoorbellMessage | undefined;
 	const uuid = payload?.uuid;

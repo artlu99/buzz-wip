@@ -4,12 +4,13 @@ import {
 	String100,
 	String1000,
 } from "@evolu/common";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import invariant from "tiny-invariant";
+import { lru } from "tiny-lru";
 import { useZustand } from "../../hooks/use-zustand";
+import { useAutoResponder } from "../../hooks/useAutoResponder";
 import { useEvolu } from "../../lib/local-first";
 import {
-	type ChannelData,
 	isMarcoPoloMessage,
 	type MarcoPoloMessage,
 	type UserMessageData,
@@ -18,49 +19,115 @@ import {
 } from "../../lib/sockets";
 import { useSocket } from "../../providers/SocketProvider";
 
-const PRUNE_INTERVAL_MS = 60000; // 1 minute
-const STALE_THRESHOLD_MS = 600000; // 10 minutes
-
 export const MarcoPoloMessageHandler = () => {
 	const socketClient = useSocket();
 	const { upsert } = useEvolu();
-	const {
-		channel,
-		room,
-		uuid,
-		user,
-		pruneStaleEntries,
-		setEncryptionKey,
-		setRoom,
-	} = useZustand();
+	const { uuid, setEncryptionKey, setRoom, channel, lockdown } = useZustand();
 
-	const { channelId, encryptionKey } = channel;
+	// Memoize autoresponder options to prevent re-creating on every render
+	// Read from Zustand state directly (not getState()) to ensure reactivity
+	const autoResponderOptions = useMemo(
+		() => ({
+			socketClient,
+			channelId: channel.channelId,
+			uuid: uuid,
+			encryptionKey: channel.encryptionKey,
+			encrypted: channel.encrypted,
+		}),
+		[
+			socketClient,
+			channel.channelId,
+			uuid,
+			channel.encryptionKey,
+			channel.encrypted,
+		],
+	);
 
-	// Periodic pruning of stale room entries
+	// Use autoresponder hook for Marco message handling
+	useAutoResponder(autoResponderOptions);
+
+	// No periodic pruning needed - room entries are filtered on read via getActiveRoom()
+	// The room state persists stale entries for recovery, but they're filtered when accessed
+
+	// LRU cache for Marco response deduplication
+	// Max 100 entries with 1s TTL - automatically evicts expired entries
+	// Key: uuid (the user we're responding to), Value: timestamp (not used, just for existence check)
+	const marcoResponseCacheRef = useRef(lru<number>(100, 1000, true)); // max=100, ttl=1s, resetTtl=true
+
+	// Track encryption key and lockdown to proactively broadcast changes
+	const lastEncryptionKeyRef = useRef<string | undefined>(
+		channel.encryptionKey,
+	);
+	const lastLockdownRef = useRef<boolean>(lockdown);
+	const isInitialMountRef = useRef(true);
+
+	// Proactively broadcast encryption key changes via Polo messages
 	useEffect(() => {
 		if (!uuid) return;
+		if (isInitialMountRef.current) {
+			// Don't broadcast on initial mount
+			isInitialMountRef.current = false;
+			lastEncryptionKeyRef.current = channel.encryptionKey;
+			lastLockdownRef.current = lockdown;
+			return;
+		}
 
-		const interval = setInterval(() => {
-			pruneStaleEntries(STALE_THRESHOLD_MS);
-		}, PRUNE_INTERVAL_MS);
+		const currentState = useZustand.getState();
+		const currentEncryptionKey = channel.encryptionKey;
+		const currentLockdown = lockdown;
+		const currentChannelId = channel.channelId;
 
-		return () => clearInterval(interval);
-	}, [uuid, pruneStaleEntries]);
+		// Check if encryption key or lockdown changed
+		const keyChanged = currentEncryptionKey !== lastEncryptionKeyRef.current;
+		const lockdownChanged = currentLockdown !== lastLockdownRef.current;
 
-	const uuidRef = useRef(uuid);
-	uuidRef.current = uuid;
-	const channelIdRef = useRef(channelId);
-	channelIdRef.current = channelId;
-	const userRef = useRef(user);
-	userRef.current = user;
-	const encryptionKeyRef = useRef(encryptionKey);
-	encryptionKeyRef.current = encryptionKey;
-	const roomRef = useRef(room);
-	roomRef.current = room;
+		// Only broadcast if:
+		// 1. Key changed AND we're not in lockdown (so we can share the new key)
+		// 2. Lockdown changed from true to false (so we can share the key again)
+		// Don't broadcast when entering lockdown (undefined key is ignored by receivers anyway)
+		const shouldBroadcast =
+			(keyChanged && !currentLockdown) ||
+			(lockdownChanged && !currentLockdown && currentEncryptionKey);
+
+		if (shouldBroadcast) {
+			console.log(
+				"[MARCO HANDLER] Encryption key or lockdown changed, broadcasting Polo message",
+				{
+					keyChanged,
+					lockdownChanged,
+					currentEncryptionKey: currentEncryptionKey ? "***" : undefined,
+					currentLockdown,
+				},
+			);
+
+			// Update refs
+			lastEncryptionKeyRef.current = currentEncryptionKey;
+			lastLockdownRef.current = currentLockdown;
+
+			// Broadcast Polo message with updated channel data
+			const iam: UserMessageData = {
+				...currentState.user,
+			};
+			const thisChannel = useZustand
+				.getState()
+				.createChannelData(currentChannelId);
+			const message: MarcoPoloMessage = {
+				type: WsMessageType.MARCO_POLO,
+				channelId: currentChannelId,
+				uuid: uuid,
+				message: { user: iam, channel: thisChannel },
+			};
+			socketClient.safeSend(message);
+		} else if (keyChanged || lockdownChanged) {
+			// Update refs even if we don't broadcast (to track state)
+			lastEncryptionKeyRef.current = currentEncryptionKey;
+			lastLockdownRef.current = currentLockdown;
+		}
+	}, [socketClient, uuid, channel.encryptionKey, channel.channelId, lockdown]);
 
 	useEffect(() => {
 		// Short-circuit if uuid is missing
-		if (!uuidRef.current) return;
+		if (!uuid) return;
 
 		const handler = (e: WsMessage) => {
 			if (!isMarcoPoloMessage(e.message)) {
@@ -69,27 +136,46 @@ export const MarcoPoloMessageHandler = () => {
 			const payload: MarcoPoloMessage = e.message;
 			invariant(payload.channelId, "Marco Polo message has no channel name");
 
-			if (payload.channelId !== channelIdRef.current) return;
+			const state = useZustand.getState();
+			const currentChannelId = state.channel.channelId;
+			if (payload.channelId !== currentChannelId) return;
 
 			// respond to Marco messages
 			if (
 				payload.message.user === undefined &&
 				payload.message.channel === undefined
 			) {
+				// Prevent duplicate Marco responses using LRU cache with TTL
+				// Key: our uuid (we're responding as ourselves)
+				const responseKey = state.uuid;
+				if (
+					responseKey &&
+					marcoResponseCacheRef.current.get(responseKey) !== undefined
+				) {
+					console.log(
+						"[MARCO HANDLER] Skipping duplicate Marco response (within TTL)",
+					);
+					return;
+				}
+
 				const iam: UserMessageData = {
-					...userRef.current,
+					...state.user,
 				};
-				const thisChannel: ChannelData = {
-					id: channelIdRef.current,
-					publicUselessEncryptionKey: encryptionKey,
-				};
+				// Use Zustand method to create channel data (respects lockdown, reads fresh state)
+				const thisChannel = useZustand
+					.getState()
+					.createChannelData(currentChannelId);
 				const message: MarcoPoloMessage = {
 					type: WsMessageType.MARCO_POLO,
-					channelId: channelIdRef.current,
-					uuid: uuidRef.current,
+					channelId: currentChannelId,
+					uuid: state.uuid,
 					message: { user: iam, channel: thisChannel },
 				};
 				socketClient.safeSend(message);
+				// Store in cache (TTL handles expiration automatically)
+				if (responseKey) {
+					marcoResponseCacheRef.current.set(responseKey, Date.now());
+				}
 				return;
 			}
 
@@ -97,12 +183,10 @@ export const MarcoPoloMessageHandler = () => {
 			invariant(payload.uuid, "Marco Polo message has no uuid");
 			const networkUuid = NonEmptyString100.orThrow(payload.uuid);
 
-			// Prune stale entries when a new user joins
-			pruneStaleEntries(STALE_THRESHOLD_MS);
-
 			// Update room with latest timestamp for this uuid (Record automatically keeps latest)
+			// Stale entries are filtered on read via getActiveRoom(), no need to prune proactively
 			setRoom({
-				...roomRef.current,
+				...state.room,
 				[networkUuid]: Date.now(),
 			});
 
@@ -115,10 +199,14 @@ export const MarcoPoloMessageHandler = () => {
 			const bio = String1000.orThrow(
 				payload.message.user?.bio?.slice(0, 1000) ?? "",
 			);
+			// Only accept encryption key if not in lockdown (read fresh state)
 			if (payload.message.channel?.publicUselessEncryptionKey) {
-				setEncryptionKey(
-					payload.message.channel?.publicUselessEncryptionKey?.slice(0, 1000),
-				);
+				const currentState = useZustand.getState();
+				if (!currentState.lockdown) {
+					setEncryptionKey(
+						payload.message.channel?.publicUselessEncryptionKey?.slice(0, 1000),
+					);
+				}
 			}
 
 			upsert("user", {
@@ -128,11 +216,11 @@ export const MarcoPoloMessageHandler = () => {
 				pfpUrl,
 				bio,
 			});
-			const id = createIdFromString(channelIdRef.current);
+			const id = createIdFromString(currentChannelId);
 			upsert("channel", {
 				id,
 				name: String100.orThrow(
-					payload.message.channel?.name?.slice(0, 100) ?? channelIdRef.current,
+					payload.message.channel?.name?.slice(0, 100) ?? currentChannelId,
 				),
 				description: String1000.orThrow(
 					payload.message.channel?.description?.slice(0, 1000) ?? "",
@@ -140,22 +228,12 @@ export const MarcoPoloMessageHandler = () => {
 				pfpUrl: String1000.orThrow(
 					payload.message.channel?.pfpUrl?.slice(0, 1000) ?? "",
 				),
-				encryptionKey: String1000.orThrow(
-					payload.message.channel?.publicUselessEncryptionKey?.slice(0, 1000) ??
-						"",
-				),
 			});
 		};
 
 		socketClient.on(WsMessageType.MARCO_POLO, handler);
-	}, [
-		socketClient,
-		encryptionKey,
-		pruneStaleEntries,
-		setEncryptionKey,
-		setRoom,
-		upsert,
-	]);
+		// Handler reads fresh state via getState(), so lockdown doesn't need to be in dependencies
+	}, [socketClient, uuid, setRoom, setEncryptionKey, upsert]);
 
 	return null;
 };

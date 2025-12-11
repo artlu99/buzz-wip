@@ -1,10 +1,12 @@
 import { EvoluProvider } from "@evolu/react";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
+import { lru } from "tiny-lru";
 import { Link, Route } from "wouter";
 import { AuthActions } from "./components/AuthActions";
 import { AvailableReactions } from "./components/AvailableReactions";
 import { Bubbles } from "./components/Bubbles";
 import { ClearMessagesElement } from "./components/ClearMessagesElement";
+import { HelpPage } from "./components/HelpPage";
 import { DeleteMessageHandler } from "./components/listeners/DeleteMessageHandler";
 import { HelloUser } from "./components/listeners/HelloUser";
 import { MarcoPoloMessageHandler } from "./components/listeners/MarcoPoloMessageHandler";
@@ -16,13 +18,15 @@ import { MultiSelectorBlock } from "./components/MultiSelectorBlock";
 import { NavBar } from "./components/NavBar";
 import { OwnerActions } from "./components/OwnerActions";
 import { ProfileEditor } from "./components/ProfileEditor";
-import { AutoResponderToggle } from "./components/ui/AutoResponderToggle";
+import { AudioToggle } from "./components/ui/AudioToggle";
+import { LockdownToggle } from "./components/ui/LockdownToggle";
 import { useZustand } from "./hooks/use-zustand";
 import { evoluInstance } from "./lib/local-first";
 import { DoorbellType, WsMessageType } from "./lib/sockets";
 import PWABadge from "./PWABadge";
 import { AudioProvider } from "./providers/AudioProvider";
 import { useSocket } from "./providers/SocketProvider";
+
 
 function App() {
 	const socketClient = useSocket();
@@ -40,8 +44,21 @@ function App() {
 		getAppOwner();
 	}, [setRoom, setUuid]);
 
+	// LRU cache for Marco message deduplication
+	// Max 50 entries with 2s TTL - automatically evicts expired entries
+	// Key: `${channelId}:${uuid}`, Value: timestamp (not used, just for existence check)
+	const marcoMessageCacheRef = useRef(lru<number>(50, 2000, true)); // max=50, ttl=2s, resetTtl=true
+
 	useEffect(() => {
 		if (!uuid) return;
+
+		// Prevent duplicate Marco messages using LRU cache with TTL
+		const cacheKey = `${channelId}:${uuid}`;
+		if (marcoMessageCacheRef.current.get(cacheKey) !== undefined) {
+			console.log("[APP] Skipping duplicate Marco message (within TTL)");
+			return;
+		}
+
 		socketClient.safeSend({
 			type: WsMessageType.DOORBELL,
 			uuid: uuid,
@@ -56,6 +73,9 @@ function App() {
 			message: {},
 			channelId: channelId,
 		});
+
+		// Store in cache (TTL handles expiration automatically)
+		marcoMessageCacheRef.current.set(cacheKey, Date.now());
 	}, [channelId, socketClient, uuid]);
 
 	// Send "bye" message when browser/tab closes
@@ -100,7 +120,6 @@ function App() {
 						<EvoluProvider value={evoluInstance}>
 							{/* Header */}
 							<div className="mb-2 flex items-center justify-between pb-4">
-								<AutoResponderToggle />
 								<h1 className="w-full text-start text-xl font-semibold text-gray-900">
 									<Link href="/">
 										<img
@@ -135,6 +154,15 @@ function App() {
 									<ProfileEditor />
 									<OwnerActions />
 									<AuthActions />
+								</Route>
+								<Route path="/about">
+									<HelpPage />
+								</Route>
+								<Route path="/settings">
+									<div className="flex flex-row gap-2">
+										<LockdownToggle />
+										<AudioToggle />
+									</div>
 								</Route>
 							</Suspense>
 						</EvoluProvider>

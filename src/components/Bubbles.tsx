@@ -15,11 +15,12 @@ import {
 	UserMessageDataSchema,
 	WsMessageType,
 } from "../lib/sockets";
+import { getDisplayTimestamp } from "../lib/timestamp-validation";
 import { useSocket } from "../providers/SocketProvider";
 import { MessageReactions } from "./MessageReactions";
 import { ClickableDateSpan } from "./ui/ClickableDateSpan";
 
-export const	 Bubbles = () => {
+export const Bubbles = () => {
 	const { channel, uuid } = useZustand();
 	const { channelId } = channel;
 	const { update } = useEvolu();
@@ -47,10 +48,12 @@ export const	 Bubbles = () => {
 			});
 		});
 
+		// Use updatedAt timestamp for DELETE (when message was deleted locally)
 		const deleteMessage: DeleteMessage = {
 			uuid: uuid,
 			type: WsMessageType.DELETE,
 			networkMessageId: item.networkMessageId,
+			networkTimestamp: new Date(item.updatedAt).getTime().toString(),
 			channelId: item.channelId,
 			signature: null,
 		};
@@ -58,9 +61,17 @@ export const	 Bubbles = () => {
 		socketClient.safeSend(deleteMessage);
 	};
 
+	// Sort by display timestamp (uses networkTimestamp if valid, falls back to createdAt)
 	const messages = alphabetical(
 		unique(messagesQueryResult, (m) => m.networkMessageId),
-		(m) => m.createdAt,
+		(m) => {
+			const createdAt = new Date(m.createdAt).getTime();
+			const displayTimestamp = getDisplayTimestamp(
+				m.networkTimestamp ?? undefined,
+				createdAt,
+			);
+			return displayTimestamp.toString();
+		},
 		"asc",
 	);
 

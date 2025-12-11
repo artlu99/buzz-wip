@@ -4,7 +4,6 @@ import {
 	type MaxLengthError,
 	type MinLengthError,
 } from "@evolu/common";
-import { z } from "zod";
 
 export const chosenIdenticonStyle: IdenticonStyle = "sutnar";
 
@@ -23,8 +22,10 @@ export const formatTypeError = createFormatTypeError<
 	}
 });
 
-// Serialize binary data using base64 encoding (modern standard for binary in JSON)
-// Helper to convert Uint8Array to base64 efficiently (handles large arrays)
+/**
+ * Serialize binary data using base64 encoding (modern standard for binary in JSON).
+ * Helper to convert Uint8Array to base64 efficiently (handles large arrays).
+ */
 export const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
 	let binary = "";
 	const len = bytes.byteLength;
@@ -34,6 +35,9 @@ export const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
 	return btoa(binary);
 };
 
+/**
+ * Convert base64 string to Uint8Array.
+ */
 export const Base64ToUint8Array = (base64: string): Uint8Array => {
 	const binary = atob(base64);
 	const bytes = new Uint8Array(binary.length);
@@ -42,13 +46,3 @@ export const Base64ToUint8Array = (base64: string): Uint8Array => {
 	}
 	return bytes;
 };
-
-export interface SerializedEncryptedData {
-	nonce: string;
-	ciphertext: string;
-}
-
-export const SerializedEncryptedDataSchema = z.object({
-	nonce: z.string(),
-	ciphertext: z.string(),
-});

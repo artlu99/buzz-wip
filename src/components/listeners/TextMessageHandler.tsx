@@ -1,8 +1,5 @@
 import {
 	createIdFromString,
-	createRandomBytes,
-	createSymmetricCrypto,
-	type EncryptionKey,
 	NonEmptyString100,
 	NonEmptyString1000,
 	OwnerId,
@@ -13,7 +10,6 @@ import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import invariant from "tiny-invariant";
 import { useZustand } from "../../hooks/use-zustand";
-import { Base64ToUint8Array } from "../../lib/helpers";
 import { messagesForChannelQuery, useEvolu } from "../../lib/local-first";
 import {
 	isTextMessage,
@@ -21,33 +17,22 @@ import {
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
+import { decryptMessageContent } from "../../lib/symmetric-encryption";
+import {
+	getSafeNetworkTimestamp,
+	validateNetworkTimestamp,
+} from "../../lib/timestamp-validation";
 import { useSocket } from "../../providers/SocketProvider";
 
 export const TextMessageHandler = () => {
 	const socketClient = useSocket();
 	const { insert, upsert } = useEvolu();
-	const { channel, uuid } = useZustand();
-	const { channelId, encryptionKey } = channel;
+	const { channel } = useZustand();
+	const { channelId } = channel;
 
 	const allMessages = useQuery(messagesForChannelQuery(channelId));
 	const allMessagesRef = useRef(allMessages);
 	allMessagesRef.current = allMessages;
-
-	// Use refs to always read the latest values without re-registering the handler
-	const channelIdRef = useRef(channelId);
-	const encryptionKeyRef = useRef(encryptionKey);
-	const uuidRef = useRef(uuid);
-	const insertRef = useRef(insert);
-	const upsertRef = useRef(upsert);
-
-	// Keep refs in sync with current values (using useEffect is more React-idiomatic)
-	useEffect(() => {
-		channelIdRef.current = channelId;
-		encryptionKeyRef.current = encryptionKey;
-		uuidRef.current = uuid;
-		insertRef.current = insert;
-		upsertRef.current = upsert;
-	}, [channelId, encryptionKey, uuid, insert, upsert]);
 
 	useEffect(() => {
 		const handler = (e: WsMessage) => {
@@ -57,39 +42,24 @@ export const TextMessageHandler = () => {
 			const payload: TextMessage = e.message;
 			invariant(payload.uuid, "Text message has no uuid");
 
-			// Read from refs to get the latest values
-			if (payload.channelId !== channelIdRef.current) return;
-			if (payload.uuid === uuidRef.current) return;
+			// Use getState() to read current values without subscribing
+			const state = useZustand.getState();
+			const currentChannelId = state.channel.channelId;
+			const currentUuid = state.uuid;
+			const currentEncryptionKey = state.channel.encryptionKey;
+
+			if (payload.channelId !== currentChannelId) return;
+			if (payload.uuid === currentUuid) return;
 
 			let content: string | undefined;
 			if (typeof payload.content === "string") {
 				content = payload.content;
 			} else {
-				const currentEncryptionKey = encryptionKeyRef.current;
 				if (!currentEncryptionKey) {
 					return;
 				}
 
-				const symmetricEncryptionKey = Base64ToUint8Array(
-					currentEncryptionKey ?? "",
-				) as EncryptionKey;
-
-				const { ciphertext, nonce } = payload.content;
-
-				const randomBytes = createRandomBytes();
-				const crypt = createSymmetricCrypto({
-					randomBytes,
-				});
-
-				const decryptedContent = crypt.decrypt(
-					Base64ToUint8Array(ciphertext),
-					symmetricEncryptionKey,
-					Base64ToUint8Array(nonce),
-				);
-
-				if (decryptedContent.ok) {
-					content = new TextDecoder().decode(decryptedContent.value);
-				}
+				content = decryptMessageContent(payload.content, currentEncryptionKey);
 			}
 			if (!content) {
 				return;
@@ -110,13 +80,31 @@ export const TextMessageHandler = () => {
 			const json = JSON.stringify(payload.user);
 			const userItem = NonEmptyString1000.orThrow(json);
 
-			// Use refs to get the latest functions
-			insertRef.current("message", {
+			// Validate and get safe network timestamp
+			const timestampValidation = validateNetworkTimestamp(
+				payload.networkTimestamp,
+				Date.now(),
+			);
+			if (!timestampValidation.valid && timestampValidation.reason) {
+				console.warn("[TEXT HANDLER] Invalid networkTimestamp:", {
+					networkMessageId,
+					reason: timestampValidation.reason,
+					originalTimestamp: timestampValidation.originalTimestamp,
+				});
+			}
+			const safeNetworkTimestamp = getSafeNetworkTimestamp(
+				payload.networkTimestamp,
+				Date.now(),
+			);
+
+			// Use current functions from closure
+			insert("message", {
 				content: NonEmptyString1000.orThrow(content.slice(0, 1000)),
 				user: userItem,
 				channelId: NonEmptyString100.orThrow(payload.channelId.slice(0, 100)),
 				createdBy: OwnerId.orThrow(payload.uuid),
 				networkMessageId: networkMessageId,
+				networkTimestamp: safeNetworkTimestamp,
 			});
 
 			const networkUuid = NonEmptyString100.orThrow(payload.uuid);
@@ -127,7 +115,7 @@ export const TextMessageHandler = () => {
 				payload.user.pfpUrl?.slice(0, 1000) ?? "<none>",
 			);
 			const bio = String1000.orThrow(payload.user.bio?.slice(0, 1000) ?? "");
-			upsertRef.current("user", {
+			upsert("user", {
 				id: createIdFromString(payload.uuid),
 				networkUuid,
 				displayName,
@@ -139,7 +127,7 @@ export const TextMessageHandler = () => {
 		socketClient.on(WsMessageType.TEXT, handler);
 		// Only re-register when socketClient changes, not when encryptionKey/channelId/uuid change
 		// The handler reads from refs, so it always has the latest values
-	}, [socketClient]);
+	}, [socketClient, insert, upsert]);
 
 	return null;
 };

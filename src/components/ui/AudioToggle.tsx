@@ -1,32 +1,23 @@
-import { toast } from "react-hot-toast";
 import { useZustand } from "../../hooks/use-zustand";
 
-const SHOW_TOGGLE = true;
+const SHOW_TOGGLE = false;
 
-export const AutoResponderToggle = () => {
-	const { user, toggleAutoResponder } = useZustand();
+export const AudioToggle = () => {
+	const { playSounds, togglePlaySounds } = useZustand();
 
 	if (!SHOW_TOGGLE) {
 		return null;
 	}
 
 	return (
-		<span>
-			<i
-				className={`ph-bold ph-robot text-xl ${user.autoResponder ? "text-primary/70" : "text-primary/30"} align-middle mr-2`}
-			/>
-			<label className="toggle text-base-content mr-4">
+		<fieldset className="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
+			<legend className="fieldset-legend">Play Sounds</legend>
+			<label className="toggle text-base-content mx-4">
 				<input
 					type="checkbox"
-					checked={user.autoResponder}
-					onChange={() => {
-						toast.success(
-							user.autoResponder
-								? "Auto Responder disabled"
-								: "Auto Responder enabled",
-						);
-						toggleAutoResponder();
-					}}
+					checked={playSounds}
+					onChange={togglePlaySounds}
+					disabled
 				/>
 				<svg
 					aria-label="disabled"
@@ -59,6 +50,7 @@ export const AutoResponderToggle = () => {
 					</g>
 				</svg>
 			</label>
-		</span>
+			{playSounds ? "Sounds On" : "Muted"}
+		</fieldset>
 	);
 };

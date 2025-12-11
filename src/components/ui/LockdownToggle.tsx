@@ -1,32 +1,16 @@
-import { toast } from "react-hot-toast";
 import { useZustand } from "../../hooks/use-zustand";
 
-const SHOW_TOGGLE = true;
-
-export const AutoResponderToggle = () => {
-	const { user, toggleAutoResponder } = useZustand();
-
-	if (!SHOW_TOGGLE) {
-		return null;
-	}
+export const LockdownToggle = () => {
+	const { lockdown, setLockdown } = useZustand();
 
 	return (
-		<span>
-			<i
-				className={`ph-bold ph-robot text-xl ${user.autoResponder ? "text-primary/70" : "text-primary/30"} align-middle mr-2`}
-			/>
-			<label className="toggle text-base-content mr-4">
+		<fieldset className="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
+			<legend className="fieldset-legend">Lockdown Mode</legend>
+			<label className="toggle text-base-content mx-4">
 				<input
 					type="checkbox"
-					checked={user.autoResponder}
-					onChange={() => {
-						toast.success(
-							user.autoResponder
-								? "Auto Responder disabled"
-								: "Auto Responder enabled",
-						);
-						toggleAutoResponder();
-					}}
+					checked={lockdown}
+					onChange={() => setLockdown(!lockdown)}
 				/>
 				<svg
 					aria-label="disabled"
@@ -59,6 +43,7 @@ export const AutoResponderToggle = () => {
 					</g>
 				</svg>
 			</label>
-		</span>
+			{lockdown ? "More secure" : "More convenient"}
+		</fieldset>
 	);
 };

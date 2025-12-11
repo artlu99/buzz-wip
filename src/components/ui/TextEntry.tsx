@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useZustand } from "../../hooks/use-zustand";
 import { pluralize } from "../../lib/helpers";
 
@@ -14,7 +14,13 @@ export const TextEntry = ({
 	onSend,
 }: TextEntryProps) => {
 	const [message, setMessage] = useState("");
-	const { room, user } = useZustand();
+	const { getActiveRoom, user, room } = useZustand();
+	// Filter stale entries on read - subscribing to room ensures component re-renders when room changes
+	const activeRoom = useMemo(() => {
+		// Access room to ensure reactivity, then filter via getActiveRoom
+		void room; // Subscribe to room for reactivity
+		return getActiveRoom();
+	}, [getActiveRoom, room]);
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setMessage(e.target.value);
@@ -69,8 +75,13 @@ export const TextEntry = ({
 					htmlFor="text-entry"
 					className="text-sm text-left text-base-content/70"
 				>
-				<span className="font-semibold">You appear as:</span>{" "}
-				{user.displayName} to {pluralize(Object.keys(room).length - 1, "other person", "other people")}
+					<span className="font-semibold">You appear as:</span>{" "}
+					{user.displayName} to{" "}
+					{pluralize(
+						Object.keys(activeRoom).length - 1,
+						"other person",
+						"other people",
+					)}
 				</label>
 			</div>
 		</form>

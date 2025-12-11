@@ -1,15 +1,5 @@
-import {
-	createIdFromString,
-	createRandomBytes,
-	createSymmetricCrypto,
-	type EncryptionKey,
-} from "@evolu/common";
+import { createIdFromString } from "@evolu/common";
 import { useZustand } from "../hooks/use-zustand";
-import {
-	Base64ToUint8Array,
-	type SerializedEncryptedData,
-	uint8ArrayToBase64,
-} from "../lib/helpers";
 import { useEvolu } from "../lib/local-first";
 import type { TextMessage } from "../lib/sockets";
 import {
@@ -17,6 +7,7 @@ import {
 	TypingIndicatorType,
 	WsMessageType,
 } from "../lib/sockets";
+import { prepareMessageContent } from "../lib/symmetric-encryption";
 import { useSocket } from "../providers/SocketProvider";
 import { TextEntry } from "./ui/TextEntry";
 
@@ -58,6 +49,7 @@ export const MessageSender = () => {
 			channelId: channelId,
 			createdBy: uuid,
 			networkMessageId: createIdFromString(crypto.randomUUID()), // temporary, will be overridden next
+			networkTimestamp: Date.now().toString(),
 		});
 		if (!result.ok) {
 			console.error("Failed to insert message", result.error);
@@ -80,37 +72,18 @@ export const MessageSender = () => {
 		// this encryption protocol is not secure (yet),
 		// it uses same-band insecure secret transmission
 		// and user input without concern for sufficient entropy
-		const symmetricEncryptionKey = (
-			encryptionKey ? Base64ToUint8Array(encryptionKey) : undefined
-		) as EncryptionKey | undefined;
+		const { content: messageContent, encrypted: isEncrypted } =
+			prepareMessageContent(content, encrypted, encryptionKey);
 
-		const randomBytes = createRandomBytes();
-		const crypt = createSymmetricCrypto({
-			randomBytes,
-		});
-		const plaintextBytes = new TextEncoder().encode(content);
-		const encryptedContent = symmetricEncryptionKey
-			? crypt.encrypt(plaintextBytes, symmetricEncryptionKey)
-			: undefined;
-
-		const serializedEncryptedContent: SerializedEncryptedData | undefined =
-			encryptedContent
-				? {
-						nonce: uint8ArrayToBase64(encryptedContent.nonce),
-						ciphertext: uint8ArrayToBase64(encryptedContent.ciphertext),
-					}
-				: undefined;
-
-		const DO_ENCRYPTION =
-			encrypted && serializedEncryptedContent && encryptionKey !== undefined;
 		const textMessage: TextMessage = {
 			uuid: uuid,
 			type: WsMessageType.TEXT,
-			content: DO_ENCRYPTION ? serializedEncryptedContent : content,
+			content: messageContent,
 			user: user, // TODO: add encryption for user
 			channelId: channelId,
-			encrypted: !!DO_ENCRYPTION,
+			encrypted: isEncrypted,
 			networkMessageId: networkMessageId,
+			networkTimestamp: Date.now().toString(),
 		};
 		socketClient.safeSend(textMessage);
 	};
