@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import invariant from "tiny-invariant";
 import { useGarbledStore } from "../hooks/use-garbled";
 import { useZustand } from "../hooks/use-zustand";
-import { chosenIdenticonStyle } from "../lib/helpers";
+import { chosenIdenticonStyle, isValidHttpUrl } from "../lib/helpers";
 import {
 	allReactionsForChannelQuery,
 	messagesForChannelQuery,
@@ -24,6 +24,56 @@ import { MessageDetailsModal } from "./MessageDetailsModal";
 import { MessageReactions } from "./MessageReactions";
 import { ScrollNavigationFAB } from "./ScrollNavigationFAB";
 import { ClickableDateSpan } from "./ui/ClickableDateSpan";
+
+const extractAndRenderLinks = (text: string): React.ReactNode[] => {
+	const parts: React.ReactNode[] = [];
+	const urlRegex = /https?:\/\/[^\s]+/g;
+	const matches = Array.from(text.matchAll(urlRegex));
+
+	if (matches.length === 0) {
+		return [text];
+	}
+
+	let lastIndex = 0;
+	matches.forEach((match, index) => {
+		// Add text before the URL
+		if (match.index !== undefined && match.index > lastIndex) {
+			parts.push(text.substring(lastIndex, match.index));
+		}
+		// Validate and sanitize the URL
+		const rawUrl = match[0];
+		if (isValidHttpUrl(rawUrl)) {
+			// URL is valid, create the link
+			parts.push(
+				<a
+					key={match.index ?? index}
+					href={rawUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="link link-primary"
+					onClick={(e) => e.stopPropagation()}
+				>
+					{rawUrl}
+				</a>,
+			);
+			if (match.index !== undefined) {
+				lastIndex = match.index + rawUrl.length;
+			}
+		} else {
+			// Invalid URL, just render as text (don't create a link)
+			parts.push(rawUrl);
+			if (match.index !== undefined) {
+				lastIndex = match.index + rawUrl.length;
+			}
+		}
+	});
+	// Add remaining text
+	if (lastIndex < text.length) {
+		parts.push(text.substring(lastIndex));
+	}
+
+	return parts;
+};
 
 export const Bubbles = () => {
 	const { channel, uuid, verbose } = useZustand();
@@ -258,7 +308,7 @@ export const Bubbles = () => {
 					} cursor-pointer hover:opacity-90 transition-opacity text-left block`}
 					onClick={() => setSelectedMessageId(regularItem.networkMessageId)}
 				>
-					{regularItem.content}
+					{extractAndRenderLinks(regularItem.content)}
 				</button>
 				<div className="chat-footer flex items-center gap-2">
 					<span className="opacity-50">

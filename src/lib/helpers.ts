@@ -22,6 +22,16 @@ export const formatTypeError = createFormatTypeError<
 	}
 });
 
+export const isValidHttpUrl = (urlString: string): boolean => {
+	try {
+		const url = new URL(urlString);
+		// Only allow http and https protocols
+		return url.protocol === "http:" || url.protocol === "https:";
+	} catch {
+		return false;
+	}
+};
+
 /**
  * Serialize binary data using base64 encoding (modern standard for binary in JSON).
  * Helper to convert Uint8Array to base64 efficiently (handles large arrays).
