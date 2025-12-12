@@ -1,9 +1,23 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { useZustand } from "../hooks/use-zustand";
 
 export const HelpPage = () => {
 	const { channel } = useZustand();
 	const { channelId, encrypted, encryptionKey } = channel;
+
+	// Scroll to anchor on mount if hash is present
+	useEffect(() => {
+		const hash = window.location.hash;
+		if (hash) {
+			const element = document.querySelector(hash);
+			if (element) {
+				setTimeout(() => {
+					element.scrollIntoView({ behavior: "smooth", block: "start" });
+				}, 100);
+			}
+		}
+	}, []);
 
 	return (
 		<div className="prose prose-sm max-w-none py-4">
@@ -124,6 +138,51 @@ export const HelpPage = () => {
 							</em>
 						</p>
 						<p>Toggle the Auto Responder on/off using the navigation bar.</p>
+					</div>
+				</section>
+
+				<section id="buzzing-people">
+					<h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
+						<i className="ph-bold ph-bell"></i>
+						Buzzing People
+					</h2>
+					<div className="space-y-2 text-base-content/80">
+						<p>
+							You can notify other users even when they're not actively in a
+							room by using the <strong>public notification channel</strong>{" "}
+							feature.
+						</p>
+						<p>
+							<strong>Setting up your notification channel:</strong> Go to your{" "}
+							<Link to="/db" className="link link-primary">
+								Profile
+							</Link>{" "}
+							and enter your public notification channel ID in the "Notification
+							Channels" field. This uses the{" "}
+							<a
+								href="https://ntfy.sh"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="link link-primary"
+							>
+								ntfy.sh
+							</a>{" "}
+							service to send push notifications to your devices.
+						</p>
+						<p>
+							<strong>How to buzz someone:</strong> Open the{" "}
+							<strong>Room Users</strong> modal (click the "Room Users" button
+							on the main page). If a user has set up their public notification
+							channel, you'll see a bell icon (🔔) next to their name. Click it
+							to send them a notification that will appear on their devices,
+							even if they're not currently viewing the room.
+						</p>
+						<p>
+							<em>
+								This is useful for getting someone's attention or alerting them
+								that there's activity in a room they might want to check out.
+							</em>
+						</p>
 					</div>
 				</section>
 

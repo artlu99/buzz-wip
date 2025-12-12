@@ -67,7 +67,7 @@ export interface UserMessageData {
 	pfpUrl: string;
 	bio: string;
 	status: string;
-	notificationChannel: string;
+	publicNtfyShId: string;
 	autoResponder: boolean;
 }
 

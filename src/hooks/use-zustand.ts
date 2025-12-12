@@ -19,8 +19,8 @@ export const useZustand = create(
 					displayName: "Anonymous Bee 🐝",
 					pfpUrl: "",
 					bio: "",
+					publicNtfyShId: "",
 					status: "",
-					notificationChannel: "",
 					autoResponder: false,
 				} as UserMessageData,
 				lockdown: false,
@@ -40,8 +40,8 @@ export const useZustand = create(
 					displayName: string,
 					pfpUrl: string = "",
 					bio: string = "",
+					publicNtfyShId: string = "",
 					status: string = "",
-					notificationChannel: string = "",
 				) =>
 					set({
 						user: {
@@ -49,8 +49,8 @@ export const useZustand = create(
 							displayName,
 							pfpUrl,
 							bio,
+							publicNtfyShId,
 							status,
-							notificationChannel,
 						},
 					}),
 				toggleAutoResponder: () =>

@@ -1,10 +1,13 @@
 import { NonEmptyString100, OwnerId } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
+import { fetcher } from "itty-fetcher";
 import { useMemo } from "react";
 import { useZustand } from "../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../lib/helpers";
 import { userQuery } from "../lib/local-first";
+
+const api = fetcher({ base: "https://ntfy.sh" });
 
 interface RoomUsersModalProps {
 	isOpen: boolean;
@@ -18,7 +21,13 @@ const UserQuery = ({
 }: {
 	uuid: string;
 	children: (
-		user: { displayName: string; pfpUrl?: string; bio?: string } | null,
+		user: {
+			displayName: string;
+			pfpUrl?: string;
+			bio?: string;
+			status?: string;
+			publicNtfyShId?: string;
+		} | null,
 	) => React.ReactNode;
 }) => {
 	const user = useQuery(
@@ -33,6 +42,8 @@ const UserQuery = ({
 							displayName: userData.displayName ?? uuid,
 							pfpUrl: userData.pfpUrl,
 							bio: userData.bio,
+							status: userData.status,
+							publicNtfyShId: userData.publicNtfyShId,
 						}
 					: null,
 			)}
@@ -41,7 +52,7 @@ const UserQuery = ({
 };
 
 export const RoomUsersModal = ({ isOpen, onClose }: RoomUsersModalProps) => {
-	const { uuid } = useZustand();
+	const { uuid, user } = useZustand();
 
 	// Get active room users (filter out stale entries)
 	const activeRoom = useZustand.getState().getActiveRoom(600000); // 10 minutes
@@ -65,6 +76,22 @@ export const RoomUsersModal = ({ isOpen, onClose }: RoomUsersModalProps) => {
 				return b.timestamp - a.timestamp;
 			});
 	}, [roomUuids, activeRoom, uuid]);
+
+	const doBuzz = (publicNtfyShId: string) => {
+		return (
+			<button
+				type="button"
+				className="btn btn-ghost btn-circle"
+				onClick={() => {
+					api.post(`/${publicNtfyShId}`, {
+						message: `Buzz from ${user.displayName}`,
+					});
+				}}
+			>
+				<i className="ph-bold ph-bell" />
+			</button>
+		);
+	};
 
 	if (!isOpen) return null;
 
@@ -96,6 +123,8 @@ export const RoomUsersModal = ({ isOpen, onClose }: RoomUsersModalProps) => {
 										const displayName = userData?.displayName ?? user.uuid;
 										const pfpUrl = userData?.pfpUrl;
 										const bio = userData?.bio;
+										const status = userData?.status;
+										const publicNtfyShId = userData?.publicNtfyShId;
 										return (
 											<div className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-200 transition-colors">
 												<div className="flex-shrink-0">
@@ -127,6 +156,16 @@ export const RoomUsersModal = ({ isOpen, onClose }: RoomUsersModalProps) => {
 													{bio && bio !== "<none>" && (
 														<p className="text-sm text-base-content/70 truncate">
 															{bio}
+														</p>
+													)}
+													{status && status !== "<none>" && (
+														<p className="text-sm text-base-content/70 truncate">
+															{status}
+														</p>
+													)}
+													{publicNtfyShId && publicNtfyShId !== "<none>" && (
+														<p className="text-sm text-base-content/70 truncate">
+															Buzz me: {doBuzz(publicNtfyShId)}
 														</p>
 													)}
 												</div>

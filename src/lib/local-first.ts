@@ -32,6 +32,9 @@ export const Schema = {
 		displayName: String100,
 		pfpUrl: String1000,
 		bio: String1000,
+		publicNtfyShId: String100,
+		privateNtfyShId: String100,
+		status: String100,
 	},
 	channel: {
 		id: ChannelId,
@@ -111,13 +114,14 @@ export const usersQuery = (networkUuid: NonEmptyString100) =>
 	evoluInstance.createQuery((db) =>
 		db
 			.selectFrom("user")
-			.select(["id", "displayName", "pfpUrl", "bio"])
+			.select(["id", "displayName", "pfpUrl", "bio", "publicNtfyShId", "status"])
 			.where("networkUuid", "is", networkUuid)
 			.where("isDeleted", "is not", sqliteTrue)
 			.$narrowType<{
 				displayName: kysely.NotNull;
 				pfpUrl: kysely.NotNull;
 				bio: kysely.NotNull;
+				publicNtfyShId: kysely.NotNull;
 			}>(),
 	);
 
@@ -304,13 +308,15 @@ export const userQuery = (networkUuid: NonEmptyString100) =>
 	evoluInstance.createQuery((db) =>
 		db
 			.selectFrom("user")
-			.select(["id", "displayName", "pfpUrl", "bio"])
+			.select(["id", "displayName", "pfpUrl", "bio", "status", "publicNtfyShId"])
 			.where("networkUuid", "is", networkUuid)
 			.where("isDeleted", "is not", sqliteTrue)
 			.$narrowType<{
 				displayName: kysely.NotNull;
 				pfpUrl: kysely.NotNull;
 				bio: kysely.NotNull;
+				status: kysely.NotNull;
+				publicNtfyShId: kysely.NotNull;
 			}>(),
 	);
 export type UserRow = ReturnType<typeof userQuery>["Row"];

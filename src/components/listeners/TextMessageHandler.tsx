@@ -118,12 +118,17 @@ export const TextMessageHandler = () => {
 				payload.user.pfpUrl?.slice(0, 1000) ?? "<none>",
 			);
 			const bio = String1000.orThrow(payload.user.bio?.slice(0, 1000) ?? "");
+			const status = String100.orThrow(payload.user.status?.slice(0, 100) ?? "");
+			const publicNtfyShId = String100.orThrow(payload.user.publicNtfyShId?.slice(0, 100) ?? "");
 			upsert("user", {
 				id: createIdFromString(payload.uuid),
 				networkUuid,
 				displayName,
 				pfpUrl,
 				bio,
+				status,
+				publicNtfyShId,
+				privateNtfyShId: String100.orThrow(""),
 			});
 		};
 

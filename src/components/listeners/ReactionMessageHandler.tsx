@@ -203,6 +203,9 @@ function processReaction(
 				),
 				pfpUrl: String1000.orThrow(userData.pfpUrl?.slice(0, 1000) ?? "<none>"),
 				bio: String1000.orThrow(userData.bio?.slice(0, 1000) ?? ""),
+				status: String100.orThrow(userData.status?.slice(0, 100) ?? ""),
+				publicNtfyShId: String100.orThrow(userData.publicNtfyShId?.slice(0, 100) ?? ""),
+				privateNtfyShId: String100.orThrow(""),
 			});
 		} catch {
 			// Invalid user data - create minimal record
@@ -212,6 +215,9 @@ function processReaction(
 				displayName: String100.orThrow("<none>"),
 				pfpUrl: String1000.orThrow("<none>"),
 				bio: String1000.orThrow(""),
+				status: String100.orThrow(""),
+				publicNtfyShId: String100.orThrow(""),
+				privateNtfyShId: String100.orThrow(""),
 			});
 		}
 	} else {
@@ -223,6 +229,9 @@ function processReaction(
 			displayName: String100.orThrow("<none>"),
 			pfpUrl: String1000.orThrow("<none>"),
 			bio: String1000.orThrow(""),
+			status: String100.orThrow(""),
+			publicNtfyShId: String100.orThrow(""),
+			privateNtfyShId: String100.orThrow(""),
 		});
 	}
 	// Create deterministic ID from network identifiers for idempotent upsert

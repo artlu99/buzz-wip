@@ -21,6 +21,10 @@ export const ProfileEditor = () => {
 	const [displayName, setDisplayName] = useState(user.displayName);
 	const [pfpUrl, setPfpUrl] = useState(user.pfpUrl);
 	const [bio, setBio] = useState(user.bio);
+	const [status, setStatus] = useState(user.status ?? "");
+	const [publicNtfyShId, setPublicNtfyShId] = useState(
+		user.publicNtfyShId ?? "",
+	);
 	const [isSaving, setIsSaving] = useState(false);
 
 	useEffect(() => {
@@ -42,27 +46,17 @@ export const ProfileEditor = () => {
 			setDisplayName(userData.displayName ?? user.displayName);
 			setPfpUrl(userData.pfpUrl ?? user.pfpUrl);
 			setBio(userData.bio ?? user.bio);
+			setStatus(userData.status ?? user.status);
+			setPublicNtfyShId(userData.publicNtfyShId ?? user.publicNtfyShId);
 		}
-	}, [existingUser, user.displayName, user.pfpUrl, user.bio]);
-
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
-
-		// Check if it's an image
-		if (!file.type.startsWith("image/")) {
-			alert("Please select an image file");
-			return;
-		}
-
-		// Create a data URL from the file
-		const reader = new FileReader();
-		reader.onloadend = () => {
-			const dataUrl = reader.result as string;
-			setPfpUrl(dataUrl);
-		};
-		reader.readAsDataURL(file);
-	};
+	}, [
+		existingUser,
+		user.displayName,
+		user.pfpUrl,
+		user.bio,
+		user.status,
+		user.publicNtfyShId,
+	]);
 
 	const handleSave = async () => {
 		if (!networkUuid || !uuid) {
@@ -80,6 +74,8 @@ export const ProfileEditor = () => {
 			);
 			const pfpUrlTrimmed = pfpUrl.trim().slice(0, 1000);
 			const bioTrimmed = bio.trim().slice(0, 1000);
+			const statusTrimmed = status.trim().slice(0, 100);
+			const publicNtfyShIdTrimmed = publicNtfyShId.trim().slice(0, 100);
 
 			// String100 and String1000 are nullable types, so empty strings should be fine
 			// We'll use orThrow to ensure type safety, but provide defaults for empty strings
@@ -90,6 +86,12 @@ export const ProfileEditor = () => {
 			const bioStr = bioTrimmed
 				? String1000.orThrow(bioTrimmed)
 				: String1000.orThrow("");
+			const statusStr = statusTrimmed
+				? String100.orThrow(statusTrimmed)
+				: String100.orThrow("");
+			const publicNtfyShIdStr = publicNtfyShIdTrimmed
+				? String100.orThrow(publicNtfyShIdTrimmed)
+				: String100.orThrow("");
 
 			// Check if user already exists
 			if (existingUser && existingUser.length > 0) {
@@ -100,6 +102,8 @@ export const ProfileEditor = () => {
 					displayName: displayNameStr,
 					pfpUrl: pfpUrlStr,
 					bio: bioStr,
+					status: statusStr,
+					publicNtfyShId: publicNtfyShIdStr,
 				});
 			} else {
 				// Insert new user
@@ -108,6 +112,9 @@ export const ProfileEditor = () => {
 					displayName: displayNameStr,
 					pfpUrl: pfpUrlStr,
 					bio: bioStr,
+					status: statusStr,
+					publicNtfyShId: publicNtfyShIdStr,
+					privateNtfyShId: String100.orThrow(""),
 				});
 
 				if (!result.ok) {
@@ -118,7 +125,7 @@ export const ProfileEditor = () => {
 			}
 
 			// Update Zustand store
-			setUser(displayNameStr, pfpUrlStr, bioStr);
+			setUser(displayNameStr, pfpUrlStr, bioStr, publicNtfyShIdStr);
 		} catch (error) {
 			console.error("Error saving profile:", error);
 			alert("Failed to save profile. Please check your inputs.");
@@ -140,7 +147,17 @@ export const ProfileEditor = () => {
 
 	return (
 		<div className="mt-8 rounded-lg bg-base-100 p-6 shadow-sm ring-1 ring-base-300">
-			<h2 className="mb-4 text-lg font-medium text-base-content">Profile</h2>
+			{/* Save Button */}
+			<button
+				type="button"
+				onClick={handleSave}
+				disabled={isSaving}
+				className="btn btn-primary w-full"
+			>
+				{isSaving ? "Saving..." : "Save Profile"}
+			</button>
+
+			<h2 className="my-4 text-lg font-medium text-base-content">Profile</h2>
 
 			<div className="space-y-4">
 				{/* Profile Picture */}
@@ -158,16 +175,7 @@ export const ProfileEditor = () => {
 							</div>
 						)}
 						<div className="flex-1">
-							<input
-								type="file"
-								id="pfp"
-								accept="image/*"
-								onChange={handleFileChange}
-								className="block w-full text-sm text-base-content/50 file:mr-4 file:rounded-md file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20"
-							/>
-							<p className="mt-1 text-xs text-base-content/50">
-								Or enter a URL:
-							</p>
+							<p className="mt-1 text-xs text-base-content/50">Enter a URL:</p>
 							<input
 								type="url"
 								value={pfpUrl}
@@ -220,15 +228,44 @@ export const ProfileEditor = () => {
 					</p>
 				</div>
 
-				{/* Save Button */}
-				<button
-					type="button"
-					onClick={handleSave}
-					disabled={isSaving}
-					className="btn btn-primary w-full"
-				>
-					{isSaving ? "Saving..." : "Save Profile"}
-				</button>
+				{/* Status */}
+
+				<div>
+					<label
+						htmlFor="status"
+						className="mb-2 block text-sm font-medium text-base-content/80"
+					>
+						Status
+					</label>
+					<input
+						type="text"
+						id="status"
+						value={status}
+						onChange={(e) => setStatus(e.target.value)}
+						maxLength={100}
+						placeholder="Update your status"
+						className="block w-full rounded-md border-base-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+					/>
+				</div>
+
+				{/* Public Notification Channel */}
+				<div>
+					<label
+						htmlFor="publicNtfyShId"
+						className="mb-2 block text-sm font-medium text-base-content/80"
+					>
+						Notification Channels
+					</label>
+					<input
+						type="text"
+						id="publicNtfyShId"
+						value={publicNtfyShId}
+						onChange={(e) => setPublicNtfyShId(e.target.value)}
+						maxLength={100}
+						placeholder="Enter your public notification channel ID"
+						className="block w-full rounded-md border-base-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+					/>
+				</div>
 			</div>
 		</div>
 	);

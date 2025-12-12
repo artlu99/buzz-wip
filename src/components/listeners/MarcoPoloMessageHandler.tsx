@@ -199,6 +199,12 @@ export const MarcoPoloMessageHandler = () => {
 			const bio = String1000.orThrow(
 				payload.message.user?.bio?.slice(0, 1000) ?? "",
 			);
+			const status = String100.orThrow(
+				payload.message.user?.status?.slice(0, 100) ?? "",
+			);
+			const publicNtfyShId = String100.orThrow(
+				payload.message.user?.publicNtfyShId?.slice(0, 100) ?? "",
+			);
 			// Only accept encryption key if not in lockdown (read fresh state)
 			if (payload.message.channel?.publicUselessEncryptionKey) {
 				const currentState = useZustand.getState();
@@ -215,6 +221,9 @@ export const MarcoPoloMessageHandler = () => {
 				displayName,
 				pfpUrl,
 				bio,
+				status,
+				publicNtfyShId,
+				privateNtfyShId: String100.orThrow(""),
 			});
 			const id = createIdFromString(currentChannelId);
 			upsert("channel", {

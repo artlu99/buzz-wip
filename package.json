@@ -15,6 +15,7 @@
 		"@evolu/react": "^10.4.0",
 		"@evolu/react-web": "^2.4.0",
 		"date-fns": "^4.1.0",
+		"itty-fetcher": "^1.0.10",
 		"itty-sockets": "^0.6.1",
 		"radash": "^12.1.1",
 		"react": "^19.2.1",
