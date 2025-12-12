@@ -1,13 +1,19 @@
-import { NonEmptyString100, sqliteFalse, sqliteTrue } from "@evolu/common";
+import {
+	createIdFromString,
+	NonEmptyString100,
+	String100,
+	String1000,
+	sqliteFalse,
+	sqliteTrue,
+} from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import { lru } from "tiny-lru";
 import { useZustand } from "../../hooks/use-zustand";
 import {
-	type AllReactionsForChannelRow,
-	allReactionsForChannelQuery,
 	type MessageId,
-	messagesQuery,
+	type MessagesForChannelRow,
+	messagesForChannelQuery,
 	useEvolu,
 } from "../../lib/local-first";
 import {
@@ -31,16 +37,15 @@ type PendingReaction = {
 
 export const ReactionMessageHandler = () => {
 	const socketClient = useSocket();
-	const { insert, update } = useEvolu();
+	const { upsert } = useEvolu();
 	const { channel } = useZustand();
 	const { channelId } = channel;
 
-	const allReactions = useQuery(allReactionsForChannelQuery(channelId));
-	const allMessages = useQuery(messagesQuery());
+	const allMessages = useQuery(
+		messagesForChannelQuery(NonEmptyString100.orThrow(channelId.slice(0, 100))),
+	);
 
 	// Use refs to ensure handler always reads latest values from Evolu
-	const allReactionsRef = useRef(allReactions);
-	allReactionsRef.current = allReactions;
 	const allMessagesRef = useRef(allMessages);
 	allMessagesRef.current = allMessages;
 
@@ -83,7 +88,6 @@ export const ReactionMessageHandler = () => {
 			}
 
 			// Always read latest values from Evolu via refs
-			const currentReactions = allReactionsRef.current ?? [];
 			const currentMessages = allMessagesRef.current ?? [];
 
 			// Find the message by networkMessageId to get the local message id
@@ -122,22 +126,15 @@ export const ReactionMessageHandler = () => {
 			});
 
 			// Process the reaction
-			processReaction(
-				payload,
-				localMessage.id,
-				currentReactions,
-				insert,
-				update,
-			);
+			processReaction(payload, localMessage.id, currentMessages, upsert);
 		};
 
 		socketClient.on(WsMessageType.REACTION, handler);
-	}, [socketClient, insert, update]);
+	}, [socketClient, upsert]);
 
 	// Process pending reactions when messages are updated
 	useEffect(() => {
 		const currentMessages = allMessages ?? [];
-		const currentReactions = allReactions ?? [];
 		const pendingCache = pendingReactionsRef.current;
 
 		// Check each pending reaction to see if its message has arrived
@@ -163,108 +160,110 @@ export const ReactionMessageHandler = () => {
 					},
 				);
 
-				// Process all reactions - database-level matching ensures idempotency
+				// Process all reactions - deterministic IDs ensure idempotency
 				for (const { payload } of reactions) {
-					processReaction(
-						payload,
-						localMessage.id,
-						currentReactions,
-						insert,
-						update,
-					);
+					processReaction(payload, localMessage.id, currentMessages, upsert);
 				}
 
 				// Remove from cache (LRU will handle eviction automatically)
 				pendingCache.delete(networkMessageId);
 			}
 		}
-	}, [allMessages, allReactions, insert, update]);
+	}, [allMessages, upsert]);
 
 	return null;
 };
 
 /**
- * Process a reaction message by inserting or updating it in the database.
+ * Process a reaction message by upserting it in the database using a deterministic ID.
+ * Uses network identifiers (networkMessageId, createdBy, reaction) to create a deterministic ID,
+ * ensuring database-level idempotency and preventing race conditions.
+ * Also ensures the user exists in the database.
  */
 function processReaction(
 	payload: ReactionMessage,
 	localMessageId: MessageId,
-	currentReactions: readonly AllReactionsForChannelRow[],
-	insert: ReturnType<typeof useEvolu>["insert"],
-	update: ReturnType<typeof useEvolu>["update"],
+	currentMessages: readonly MessagesForChannelRow[],
+	upsert: ReturnType<typeof useEvolu>["upsert"],
 ) {
-	// Find the reaction by matching on network identifiers: networkMessageId, createdBy, and reaction type
-	// This ensures matching works correctly across distributed stores, not just local messageId
-	// Note: We check all reactions (including deleted) to find the right one to update
-	const existingReaction = currentReactions.find(
-		(r) =>
-			r.networkMessageId === payload.networkMessageId &&
-			r.createdBy === payload.uuid &&
-			String(r.reaction) === String(payload.reaction),
+	// Ensure user exists - extract from existing message if available
+	const networkUuid = NonEmptyString100.orThrow(payload.uuid);
+	const userMessage = currentMessages.find(
+		(msg) => msg.createdBy === payload.uuid,
 	);
 
-	if (payload.isDeleted) {
-		if (existingReaction && existingReaction.isDeleted !== sqliteTrue) {
-			// Update networkTimestamp when deleting (use DELETE timestamp)
-			const safeNetworkTimestamp = getSafeNetworkTimestamp(
-				payload.networkTimestamp,
-				Date.now(),
-			);
-			update("reaction", {
-				id: existingReaction.id,
-				isDeleted: sqliteTrue,
-				networkTimestamp: NonEmptyString100.orThrow(
-					safeNetworkTimestamp.slice(0, 100),
+	if (userMessage?.user) {
+		try {
+			const userData = JSON.parse(userMessage.user);
+			upsert("user", {
+				id: createIdFromString(networkUuid),
+				networkUuid,
+				displayName: String100.orThrow(
+					userData.displayName?.slice(0, 100) ?? "<none>",
 				),
+				pfpUrl: String1000.orThrow(userData.pfpUrl?.slice(0, 1000) ?? "<none>"),
+				bio: String1000.orThrow(userData.bio?.slice(0, 1000) ?? ""),
 			});
-		} else if (existingReaction && existingReaction.isDeleted === sqliteTrue) {
-			// Already deleted - no-op (idempotent)
+		} catch {
+			// Invalid user data - create minimal record
+			upsert("user", {
+				id: createIdFromString(networkUuid),
+				networkUuid,
+				displayName: String100.orThrow("<none>"),
+				pfpUrl: String1000.orThrow("<none>"),
+				bio: String1000.orThrow(""),
+			});
 		}
 	} else {
-		if (existingReaction) {
-			if (existingReaction.isDeleted === sqliteTrue) {
-				// Update networkTimestamp when restoring
-				const safeNetworkTimestamp = getSafeNetworkTimestamp(
-					payload.networkTimestamp,
-					Date.now(),
-				);
-				update("reaction", {
-					id: existingReaction.id,
-					isDeleted: sqliteFalse,
-					networkTimestamp: NonEmptyString100.orThrow(
-						safeNetworkTimestamp.slice(0, 100),
-					),
-				});
-			} else {
-				// Reaction already exists and is active - no-op (idempotent)
-			}
-		} else {
-			// Validate and get safe network timestamp
-			const timestampValidation = validateNetworkTimestamp(
-				payload.networkTimestamp,
-				Date.now(),
-			);
-			if (!timestampValidation.valid && timestampValidation.reason) {
-				console.warn("[REACTION HANDLER] Invalid networkTimestamp:", {
-					networkMessageId: payload.networkMessageId,
-					reason: timestampValidation.reason,
-					originalTimestamp: timestampValidation.originalTimestamp,
-				});
-			}
-			const safeNetworkTimestamp = getSafeNetworkTimestamp(
-				payload.networkTimestamp,
-				Date.now(),
-			);
-
-			insert("reaction", {
-				messageId: localMessageId,
-				reaction: NonEmptyString100.orThrow(payload.reaction.slice(0, 100)),
-				channelId: NonEmptyString100.orThrow(payload.channelId.slice(0, 100)),
-				createdBy: payload.uuid,
-				networkTimestamp: NonEmptyString100.orThrow(
-					safeNetworkTimestamp.slice(0, 100),
-				),
-			});
-		}
+		// No message from this user yet - create minimal record
+		// Will be updated when Polo or TEXT message arrives
+		upsert("user", {
+			id: createIdFromString(networkUuid),
+			networkUuid,
+			displayName: String100.orThrow("<none>"),
+			pfpUrl: String1000.orThrow("<none>"),
+			bio: String1000.orThrow(""),
+		});
 	}
+	// Create deterministic ID from network identifiers for idempotent upsert
+	// This ensures database-level uniqueness: same (networkMessageId, createdBy, reaction) = same ID
+	// This prevents race conditions - upsert is atomic at the database level
+	const reactionId = createIdFromString(
+		`${payload.networkMessageId}:${payload.uuid}:${payload.reaction}`,
+	);
+
+	// Validate and get safe network timestamp
+	const timestampValidation = validateNetworkTimestamp(
+		payload.networkTimestamp,
+		Date.now(),
+	);
+	if (!timestampValidation.valid && timestampValidation.reason) {
+		console.warn("[REACTION HANDLER] Invalid networkTimestamp:", {
+			networkMessageId: payload.networkMessageId,
+			reason: timestampValidation.reason,
+			originalTimestamp: timestampValidation.originalTimestamp,
+		});
+	}
+	const safeNetworkTimestamp = getSafeNetworkTimestamp(
+		payload.networkTimestamp,
+		Date.now(),
+	);
+
+	// Use upsert with deterministic ID - database handles insert-or-update atomically
+	// This prevents race conditions: if two instances try to insert the same reaction,
+	// the second upsert will update the first, ensuring only one reaction exists
+	upsert("reaction", {
+		id: reactionId,
+		messageId: localMessageId,
+		networkMessageId: NonEmptyString100.orThrow(
+			payload.networkMessageId.slice(0, 100),
+		),
+		reaction: NonEmptyString100.orThrow(payload.reaction.slice(0, 100)),
+		channelId: NonEmptyString100.orThrow(payload.channelId.slice(0, 100)),
+		createdBy: payload.uuid,
+		networkTimestamp: NonEmptyString100.orThrow(
+			safeNetworkTimestamp.slice(0, 100),
+		),
+		isDeleted: payload.isDeleted ? sqliteTrue : sqliteFalse,
+	});
 }

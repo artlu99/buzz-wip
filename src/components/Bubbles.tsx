@@ -2,6 +2,7 @@ import { NonEmptyString100, OwnerId, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { alphabetical, unique } from "radash";
+import { useState } from "react";
 import invariant from "tiny-invariant";
 import { useGarbledStore } from "../hooks/use-garbled";
 import { useZustand } from "../hooks/use-zustand";
@@ -19,6 +20,7 @@ import {
 } from "../lib/sockets";
 import { getDisplayTimestamp } from "../lib/timestamp-validation";
 import { useSocket } from "../providers/SocketProvider";
+import { MessageDetailsModal } from "./MessageDetailsModal";
 import { MessageReactions } from "./MessageReactions";
 import { ClickableDateSpan } from "./ui/ClickableDateSpan";
 
@@ -28,6 +30,9 @@ export const Bubbles = () => {
 	const { update } = useEvolu();
 	const socketClient = useSocket();
 	const { getMessages } = useGarbledStore();
+	const [selectedMessageId, setSelectedMessageId] = useState<
+		string | undefined
+	>();
 
 	const messagesQueryResult = useQuery(messagesForChannelQuery(channelId));
 	const reactionsQueryResult = useQuery(
@@ -127,7 +132,7 @@ export const Bubbles = () => {
 		"asc",
 	);
 
-	return sortedMessages.map((item, index) => {
+	const messageElements = sortedMessages.map((item, index) => {
 		// Handle undecryptable messages
 		if (isUndecryptable(item)) {
 			const payload = item.message;
@@ -232,17 +237,19 @@ export const Bubbles = () => {
 				<div className="chat-header">
 					{user.displayName ?? regularItem.createdBy}
 				</div>
-				<div
+				<button
+					type="button"
 					className={`chat-bubble ${
 						isMine
 							? "chat-bubble-success"
 							: isEven
 								? "chat-bubble-info"
 								: "chat-bubble-primary"
-					}`}
+					} cursor-pointer hover:opacity-90 transition-opacity text-left block`}
+					onClick={() => setSelectedMessageId(regularItem.networkMessageId)}
 				>
 					{regularItem.content}
-				</div>
+				</button>
 				<div className="chat-footer flex items-center gap-2">
 					<span className="opacity-50">
 						<ClickableDateSpan timestamp={timestamp} />
@@ -257,7 +264,10 @@ export const Bubbles = () => {
 					{isMine && (
 						<button
 							type="button"
-							onClick={() => handleDelete(regularItem)}
+							onClick={(e) => {
+								e.stopPropagation();
+								handleDelete(regularItem);
+							}}
 							className="btn btn-ghost btn-xs opacity-50 hover:opacity-100"
 							title="Delete message"
 						>
@@ -274,4 +284,15 @@ export const Bubbles = () => {
 			</div>
 		);
 	});
+
+	return (
+		<>
+			{messageElements}
+			<MessageDetailsModal
+				isOpen={!!selectedMessageId}
+				onClose={() => setSelectedMessageId(undefined)}
+				messageId={selectedMessageId}
+			/>
+		</>
+	);
 };

@@ -4,7 +4,7 @@ import { useZustand } from "../hooks/use-zustand";
 import {
 	allReactionsQuery,
 	type MessageId,
-	reactionsQuery,
+	reactionsForNetworkMessageIdQuery,
 	useEvolu,
 } from "../lib/local-first";
 import {
@@ -31,7 +31,14 @@ export const MessageReactions = ({
 	const { insert, update } = useEvolu();
 	const { channel, uuid } = useZustand();
 	const { channelId } = channel;
-	const reactionsQueryResult = useQuery(reactionsQuery(messageId));
+	// Query reactions by networkMessageId to find reactions across all local message copies
+	// This prevents double-counting when multiple instances have the same message
+	const reactionsByNetworkId = useQuery(
+		reactionsForNetworkMessageIdQuery(
+			NonEmptyString100.orThrow(networkMessageId.slice(0, 100)),
+		),
+	);
+	// Query by local messageId for checking if user has reacted locally
 	const allReactionsQueryResult = useQuery(allReactionsQuery(messageId));
 
 	if (!uuid) {
@@ -39,11 +46,31 @@ export const MessageReactions = ({
 		return;
 	}
 
-	const reactions = (reactionsQueryResult ?? []).map((reaction) => ({
+	// Use reactions grouped by networkMessageId to prevent double-counting
+	// Deduplicate by (networkMessageId, createdBy, reaction) to handle cases where
+	// multiple instances have the same message with different local messageIds
+	const networkReactions = (reactionsByNetworkId ?? []).map((reaction) => ({
 		reaction: reactionTypeToEnum(reaction.reaction),
 		by: reaction.createdBy,
 		id: reaction.id,
+		networkMessageId: reaction.networkMessageId,
 	}));
+
+	// Deduplicate: if multiple reactions have the same (networkMessageId, createdBy, reaction),
+	// keep only one (prefer the one with the matching local messageId if available)
+	const uniqueReactions = networkReactions.reduce(
+		(acc, reaction) => {
+			const key = `${reaction.networkMessageId}:${reaction.by}:${reaction.reaction}`;
+			if (!acc.seen.has(key)) {
+				acc.seen.add(key);
+				acc.reactions.push(reaction);
+			}
+			return acc;
+		},
+		{ seen: new Set<string>(), reactions: [] as typeof networkReactions },
+	).reactions;
+
+	const reactions = uniqueReactions;
 
 	const handleReaction = async (
 		messageId: MessageId,
@@ -81,6 +108,9 @@ export const MessageReactions = ({
 			} else {
 				insert("reaction", {
 					messageId: messageId,
+					networkMessageId: NonEmptyString100.orThrow(
+						networkMessageId.slice(0, 100),
+					),
 					reaction: reactionString,
 					channelId: channelId,
 					createdBy: uuid,
@@ -123,7 +153,10 @@ export const MessageReactions = ({
 							<button
 								type="button"
 								className={`btn btn-xs btn-circle btn-ghost text-lg ${iconData.color} ${reactionCount > 0 ? "scale-110 transition-transform" : ""}`}
-								onClick={() => handleReaction(messageId, reaction)}
+								onClick={(e) => {
+									e.stopPropagation();
+									handleReaction(messageId, reaction);
+								}}
 								disabled={isOwnMessage}
 							>
 								<i className={iconClass} />

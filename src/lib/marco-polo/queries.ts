@@ -57,23 +57,22 @@ export const lastNReactionsQuery = (
 	evoluInstance.createQuery((db) =>
 		db
 			.selectFrom("reaction")
-			.innerJoin("message", "message.id", "reaction.messageId")
 			.select([
-				"reaction.id",
-				"reaction.reaction",
-				"reaction.channelId",
-				"reaction.createdBy",
-				"reaction.updatedAt",
-				"reaction.isDeleted",
-				"reaction.messageId",
-				"reaction.networkTimestamp",
-				"message.networkMessageId",
+				"id",
+				"reaction",
+				"channelId",
+				"createdBy",
+				"updatedAt",
+				"isDeleted",
+				"messageId",
+				"networkMessageId",
+				"networkTimestamp",
 			])
-			.where("reaction.channelId", "is", channelId)
-			.where("message.networkMessageId", "is not", null)
+			.where("channelId", "is", channelId)
+			.where("networkMessageId", "is not", null)
 			// Include deleted reactions - they represent diffs
 			.$narrowType<{ reaction: kysely.NotNull; networkMessageId: kysely.NotNull }>()
-			.orderBy("reaction.updatedAt", "desc")
+			.orderBy("updatedAt", "desc")
 			.limit(limit),
 	);
 export type LastNReactionsRow = ReturnType<typeof lastNReactionsQuery>["Row"];

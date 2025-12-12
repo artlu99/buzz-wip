@@ -14,6 +14,8 @@ import { createUseEvolu } from "@evolu/react";
 import { evoluReactWebDeps, localAuth } from "@evolu/react-web";
 import toast from "react-hot-toast";
 
+const REACTIONS_LIMIT = 100;
+
 export const UserId = id("User");
 export type UserId = typeof UserId.Type;
 export const ChannelId = id("Channel");
@@ -50,6 +52,7 @@ export const Schema = {
 	reaction: {
 		id: ReactionId,
 		messageId: MessageId,
+		networkMessageId: NonEmptyString100, // Denormalized: network message ID for matching across distributed stores
 		reaction: NonEmptyString100,
 		channelId: NonEmptyString100,
 		createdBy: OwnerId,
@@ -244,27 +247,57 @@ export type MessagesForChannelRow = ReturnType<
 >["Row"];
 
 // Query all reactions for a specific channel including deleted ones for websocket handler
+// Now uses networkMessageId directly from reaction table (no join needed)
 export const allReactionsForChannelQuery = (channelId: NonEmptyString100) =>
 	evoluInstance.createQuery((db) =>
 		db
 			.selectFrom("reaction")
-			.innerJoin("message", "message.id", "reaction.messageId")
 			.select([
-				"reaction.id",
-				"reaction.reaction",
-				"reaction.channelId",
-				"reaction.createdBy",
-				"reaction.updatedAt",
-				"reaction.isDeleted",
-				"reaction.messageId",
-				"message.networkMessageId",
+				"id",
+				"reaction",
+				"channelId",
+				"createdBy",
+				"updatedAt",
+				"isDeleted",
+				"messageId",
+				"networkMessageId",
 			])
-			.where("reaction.channelId", "is", channelId)
-			.where("message.networkMessageId", "is not", null)
+			.where("channelId", "is", channelId)
+			.where("networkMessageId", "is not", null)
 			.$narrowType<{ reaction: kysely.NotNull; networkMessageId: kysely.NotNull }>(),
 	);
 export type AllReactionsForChannelRow = ReturnType<
 	typeof allReactionsForChannelQuery
+>["Row"];
+
+// Query reactions for a specific networkMessageId (finds reactions across all local message copies)
+// This is used to prevent double-counting when multiple instances have the same message
+// Now uses networkMessageId directly from reaction table (no join needed)
+export const reactionsForNetworkMessageIdQuery = (
+	networkMessageId: NonEmptyString100,
+	limit: number = REACTIONS_LIMIT,
+) =>
+	evoluInstance.createQuery((db) =>
+		db
+			.selectFrom("reaction")
+			.select([
+				"id",
+				"reaction",
+				"channelId",
+				"createdBy",
+				"updatedAt",
+				"isDeleted",
+				"messageId",
+				"networkMessageId",
+			])
+			.where("networkMessageId", "is", networkMessageId)
+			.where("isDeleted", "is not", sqliteTrue)
+			.$narrowType<{ reaction: kysely.NotNull; networkMessageId: kysely.NotNull }>()
+			.orderBy("updatedAt", "asc")
+			.limit(limit),
+	);
+export type ReactionsForNetworkMessageIdRow = ReturnType<
+	typeof reactionsForNetworkMessageIdQuery
 >["Row"];
 
 export const userQuery = (networkUuid: NonEmptyString100) =>

@@ -12,9 +12,9 @@ ephemeral public and private messages
 - [x] history auto-responder bots
 - [x] often hits rate limits on joining
 - [x] option to show un-decryptable messages
+- [x] show who reacted to each message
+- [x] detailed presence indications
 - [ ] framer bio + status
-- [ ] show who reacted to each message
-- [ ] detailed presence indications
 - [ ] deeplinks (with redirects to avoid data leakage in url)
 - [ ] concern about griefing / spoofing
 - [ ] rooms registry

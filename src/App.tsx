@@ -18,6 +18,7 @@ import { MultiSelectorBlock } from "./components/MultiSelectorBlock";
 import { NavBar } from "./components/NavBar";
 import { OwnerActions } from "./components/OwnerActions";
 import { ProfileEditor } from "./components/ProfileEditor";
+import { UserModals } from "./components/UserModals";
 import { AudioToggle } from "./components/ui/AudioToggle";
 import { LockdownToggle } from "./components/ui/LockdownToggle";
 import { VerboseToggle } from "./components/ui/VerboseToggle";
@@ -161,6 +162,7 @@ function App() {
 							{/* routes */}
 							<Suspense>
 								<Route path="/">
+									<UserModals />
 									<ClearMessagesElement />
 									<AvailableReactions />
 									<HelloUser />
