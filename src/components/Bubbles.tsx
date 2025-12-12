@@ -2,7 +2,7 @@ import { NonEmptyString100, OwnerId, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { alphabetical, unique } from "radash";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import invariant from "tiny-invariant";
 import { useGarbledStore } from "../hooks/use-garbled";
 import { useZustand } from "../hooks/use-zustand";
@@ -22,6 +22,7 @@ import { getDisplayTimestamp } from "../lib/timestamp-validation";
 import { useSocket } from "../providers/SocketProvider";
 import { MessageDetailsModal } from "./MessageDetailsModal";
 import { MessageReactions } from "./MessageReactions";
+import { ScrollNavigationFAB } from "./ScrollNavigationFAB";
 import { ClickableDateSpan } from "./ui/ClickableDateSpan";
 
 export const Bubbles = () => {
@@ -33,6 +34,8 @@ export const Bubbles = () => {
 	const [selectedMessageId, setSelectedMessageId] = useState<
 		string | undefined
 	>();
+	const firstMessageRef = useRef<HTMLDivElement>(null);
+	const lastMessageRef = useRef<HTMLDivElement>(null);
 
 	const messagesQueryResult = useQuery(messagesForChannelQuery(channelId));
 	const reactionsQueryResult = useQuery(
@@ -135,6 +138,8 @@ export const Bubbles = () => {
 	const messageElements = sortedMessages.map((item, index) => {
 		// Handle undecryptable messages
 		if (isUndecryptable(item)) {
+			const isFirst = index === 0;
+			const isLast = index === sortedMessages.length - 1;
 			const payload = item.message;
 			const ownerId = OwnerId.orThrow(payload.uuid);
 			const user = payload.user;
@@ -145,6 +150,7 @@ export const Bubbles = () => {
 			return (
 				<div
 					key={`undecryptable-${payload.networkMessageId}-${item.receivedAt}`}
+					ref={isFirst ? firstMessageRef : isLast ? lastMessageRef : null}
 					className={`chat ${isMine ? "chat-end" : "chat-start"}`}
 				>
 					<div className="chat-image">
@@ -212,9 +218,13 @@ export const Bubbles = () => {
 			return null;
 		}
 		const user = validator.data;
+		const isFirst = index === 0;
+		const isLast = index === sortedMessages.length - 1;
+
 		return ownerId ? (
 			<div
 				key={`${regularItem.createdBy}-${new Date(regularItem.createdAt).getTime()}`}
+				ref={isFirst ? firstMessageRef : isLast ? lastMessageRef : null}
 				className={`chat ${regularItem.createdBy === uuid ? "chat-end" : "chat-start"}`}
 			>
 				<div className="chat-image">
@@ -288,6 +298,10 @@ export const Bubbles = () => {
 	return (
 		<>
 			{messageElements}
+			<ScrollNavigationFAB
+				firstMessageRef={firstMessageRef}
+				lastMessageRef={lastMessageRef}
+			/>
 			<MessageDetailsModal
 				isOpen={!!selectedMessageId}
 				onClose={() => setSelectedMessageId(undefined)}
