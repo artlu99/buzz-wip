@@ -44,13 +44,13 @@ export function shouldAutorespond(
 		return false;
 	}
 
-	// Check blocklist
-	if (state.isBlocked(marcoMessage.uuid)) {
-		console.log("[AUTORESPONDER] shouldAutorespond: false - UUID is blocked", {
-			uuid: marcoMessage.uuid,
-		});
-		return false;
-	}
+	// Blocklist disabled - idempotency and cooldown provide sufficient protection
+	// if (state.isBlocked(marcoMessage.uuid)) {
+	// 	console.log("[AUTORESPONDER] shouldAutorespond: false - UUID is blocked", {
+	// 		uuid: marcoMessage.uuid,
+	// 	});
+	// 	return false;
+	// }
 
 	// Check cooldown (30 seconds)
 	if (state.isInCooldown(marcoMessage.uuid, 30000)) {

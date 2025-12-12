@@ -130,14 +130,8 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 return;
             }
 
-            // CRITICAL: Pre-filter messages for idempotency IMMEDIATELY when scheduling
-            // This prevents race conditions when multiple Marco messages arrive quickly
-            // We check idempotency and record messages as "scheduled" before the timeout
-            const messageMap = new Map(
-                currentTextMessages.map((m) => [m.id, m]),
-            );
 
-            // Collect messages to send (checking idempotency immediately)
+            // Collect messages to send
             type MessageToSend =
                 | { type: "text"; message: TextMessage; networkMessageId: string }
                 | { type: "delete"; message: DeleteMessage; networkMessageId: string }
@@ -192,25 +186,40 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 }
             }
 
-            // Process REACTION messages - check idempotency IMMEDIATELY
+            // Process REACTION messages
+            console.log("[AUTORESPONDER] Processing reactions:", {
+                reactionsCount: currentReactions.length,
+                reactions: currentReactions.map((r) => ({
+                    id: r.id,
+                    messageId: r.messageId,
+                    networkMessageId: r.networkMessageId,
+                    reaction: r.reaction,
+                    createdBy: r.createdBy,
+                    isDeleted: r.isDeleted,
+                })),
+            });
             for (const dbReaction of currentReactions) {
-                // Skip if messageId is null
-                if (!dbReaction.messageId) {
-                    continue;
-                }
-                const associatedMessage = messageMap.get(dbReaction.messageId);
-                if (!associatedMessage) {
-                    // Message not in set - skip this reaction
+                // Skip if messageId or networkMessageId is null
+                if (!dbReaction.messageId || !dbReaction.networkMessageId) {
+                    console.log("[AUTORESPONDER] Skipping reaction - missing messageId or networkMessageId:", {
+                        messageId: dbReaction.messageId,
+                        networkMessageId: dbReaction.networkMessageId,
+                    });
                     continue;
                 }
 
                 // Check idempotency (use networkMessageId + createdBy + reaction + isDeleted as key)
-                const reactionKey = `${associatedMessage.networkMessageId}:${dbReaction.createdBy}:${dbReaction.reaction}:${dbReaction.isDeleted === sqliteTrue}`;
-                if (
-                    state.hasHeardMessage(reactionKey, 10000) ||
-                    state.hasSentMessage(reactionKey, 10000) ||
-                    scheduledMessagesRef.current.has(reactionKey)
-                ) {
+                const reactionKey = `${dbReaction.networkMessageId}:${dbReaction.createdBy}:${dbReaction.reaction}:${dbReaction.isDeleted === sqliteTrue}`;
+                const hasHeard = state.hasHeardMessage(reactionKey, 10000);
+                const hasSent = state.hasSentMessage(reactionKey, 10000);
+                const isScheduled = scheduledMessagesRef.current.has(reactionKey);
+                if (hasHeard || hasSent || isScheduled) {
+                    console.log("[AUTORESPONDER] Skipping reaction - idempotency check:", {
+                        reactionKey,
+                        hasHeard,
+                        hasSent,
+                        isScheduled,
+                    });
                     continue;
                 }
 
@@ -220,14 +229,22 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 // Reconstruct REACTION message
                 const reactionMsg = reconstructReactionMessage(
                     dbReaction,
-                    associatedMessage.networkMessageId,
+                    dbReaction.networkMessageId,
                     NonEmptyString100.orThrow(channelId.slice(0, 100)),
                 );
                 if (reactionMsg) {
+                    console.log("[AUTORESPONDER] Adding reaction to send:", {
+                        reactionKey,
+                        reactionMsg,
+                    });
                     messagesToSend.push({
                         type: "reaction",
                         message: reactionMsg,
-                        networkMessageId: associatedMessage.networkMessageId,
+                        networkMessageId: dbReaction.networkMessageId,
+                    });
+                } else {
+                    console.log("[AUTORESPONDER] Failed to reconstruct reaction:", {
+                        dbReaction,
                     });
                 }
             }

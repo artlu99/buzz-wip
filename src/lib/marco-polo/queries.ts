@@ -46,6 +46,8 @@ export type LastNTextMessagesRow = ReturnType<
 /**
  * Query builder for last N REACTION messages in a channel (including deleted).
  * Reactions are ordered by updatedAt DESC to capture most recent state changes.
+ * This includes a join with the message table to get networkMessageId.
+ * Only includes reactions where the message has a networkMessageId.
  * This is read-only - does not modify the database.
  */
 export const lastNReactionsQuery = (
@@ -55,20 +57,23 @@ export const lastNReactionsQuery = (
 	evoluInstance.createQuery((db) =>
 		db
 			.selectFrom("reaction")
+			.innerJoin("message", "message.id", "reaction.messageId")
 			.select([
-				"id",
-				"reaction",
-				"channelId",
-				"createdBy",
-				"updatedAt",
-				"isDeleted",
-				"messageId",
-				"networkTimestamp",
+				"reaction.id",
+				"reaction.reaction",
+				"reaction.channelId",
+				"reaction.createdBy",
+				"reaction.updatedAt",
+				"reaction.isDeleted",
+				"reaction.messageId",
+				"reaction.networkTimestamp",
+				"message.networkMessageId",
 			])
-			.where("channelId", "is", channelId)
+			.where("reaction.channelId", "is", channelId)
+			.where("message.networkMessageId", "is not", null)
 			// Include deleted reactions - they represent diffs
-			.$narrowType<{ reaction: kysely.NotNull }>()
-			.orderBy("updatedAt", "desc")
+			.$narrowType<{ reaction: kysely.NotNull; networkMessageId: kysely.NotNull }>()
+			.orderBy("reaction.updatedAt", "desc")
 			.limit(limit),
 	);
 export type LastNReactionsRow = ReturnType<typeof lastNReactionsQuery>["Row"];

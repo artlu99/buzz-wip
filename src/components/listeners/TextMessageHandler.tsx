@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import invariant from "tiny-invariant";
+import { useGarbledStore } from "../../hooks/use-garbled";
 import { useZustand } from "../../hooks/use-zustand";
 import { messagesForChannelQuery, useEvolu } from "../../lib/local-first";
 import {
@@ -56,13 +57,15 @@ export const TextMessageHandler = () => {
 				content = payload.content;
 			} else {
 				if (!currentEncryptionKey) {
+					useGarbledStore.getState().addMessage(payload);
 					return;
 				}
 
 				content = decryptMessageContent(payload.content, currentEncryptionKey);
-			}
-			if (!content) {
-				return;
+				if (!content) {
+					useGarbledStore.getState().addMessage(payload);
+					return;
+				}
 			}
 
 			const networkMessageId = NonEmptyString100.orThrow(

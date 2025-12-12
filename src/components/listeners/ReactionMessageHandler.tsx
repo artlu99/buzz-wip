@@ -163,7 +163,7 @@ export const ReactionMessageHandler = () => {
 					},
 				);
 
-				// Process all reactions (TTL already handled by cache)
+				// Process all reactions - database-level matching ensures idempotency
 				for (const { payload } of reactions) {
 					processReaction(
 						payload,
@@ -193,10 +193,12 @@ function processReaction(
 	insert: ReturnType<typeof useEvolu>["insert"],
 	update: ReturnType<typeof useEvolu>["update"],
 ) {
-	// Find the reaction by matching all criteria: local messageId, createdBy, and reaction type
+	// Find the reaction by matching on network identifiers: networkMessageId, createdBy, and reaction type
+	// This ensures matching works correctly across distributed stores, not just local messageId
+	// Note: We check all reactions (including deleted) to find the right one to update
 	const existingReaction = currentReactions.find(
 		(r) =>
-			r.messageId === localMessageId &&
+			r.networkMessageId === payload.networkMessageId &&
 			r.createdBy === payload.uuid &&
 			String(r.reaction) === String(payload.reaction),
 	);
@@ -215,6 +217,8 @@ function processReaction(
 					safeNetworkTimestamp.slice(0, 100),
 				),
 			});
+		} else if (existingReaction && existingReaction.isDeleted === sqliteTrue) {
+			// Already deleted - no-op (idempotent)
 		}
 	} else {
 		if (existingReaction) {
@@ -231,6 +235,8 @@ function processReaction(
 						safeNetworkTimestamp.slice(0, 100),
 					),
 				});
+			} else {
+				// Reaction already exists and is active - no-op (idempotent)
 			}
 		} else {
 			// Validate and get safe network timestamp

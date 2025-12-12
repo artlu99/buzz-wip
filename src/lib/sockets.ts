@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { SerializedEncryptedData } from "./symmetric-encryption";
 
 // constants for message matching, de-duplication, and cleanup
-const TIME_ROUNDING_MS = 100; // Round timestamps to 100ms for matching
 const CLEANUP_INTERVAL_MS = 10000; // 10 seconds
 
 export type WsMessage = {
@@ -248,25 +247,24 @@ export class TypedWsClient {
 	}
 
 	private getMessageKey(wsMessage: WsMessage): string | null {
-		const { message, date } = wsMessage;
+		const { message } = wsMessage;
 
 		// De-dup TEXT messages
 		if (isTextMessage(message)) {
 			return message.networkMessageId;
 		}
 
-		// De-dup REACTION messages: networkMessageId + sender + reaction + timestamp (use envelope timestamp)
+		// REACTION messages: No socket-level deduplication needed
+		// Database-level matching in ReactionMessageHandler ensures idempotency
+		// (messageId + createdBy + reaction uniquely identifies reactions)
 		if (isReactionMessage(message)) {
-			const roundedTime =
-				Math.floor(date / TIME_ROUNDING_MS) * TIME_ROUNDING_MS;
-			return `reaction:${message.networkMessageId}:${message.uuid}:${message.reaction}:${message.isDeleted}:${roundedTime}`;
+			return null; // No deduplication at socket level
 		}
 
-		// De-dup DELETE messages: networkMessageId + deleter + timestamp
+		// DELETE messages: No socket-level deduplication needed
+		// Database-level update is idempotent (setting isDeleted=true multiple times is safe)
 		if (isDeleteMessage(message)) {
-			const roundedTime =
-				Math.floor(date / TIME_ROUNDING_MS) * TIME_ROUNDING_MS;
-			return `delete:${message.networkMessageId}:${message.uuid}:${roundedTime}`;
+			return null; // No deduplication at socket level
 		}
 
 		// Other message types don't need de-dup (STATUS, DOORBELL are idempotent or stateful)

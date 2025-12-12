@@ -248,17 +248,20 @@ export const allReactionsForChannelQuery = (channelId: NonEmptyString100) =>
 	evoluInstance.createQuery((db) =>
 		db
 			.selectFrom("reaction")
+			.innerJoin("message", "message.id", "reaction.messageId")
 			.select([
-				"id",
-				"reaction",
-				"channelId",
-				"createdBy",
-				"updatedAt",
-				"isDeleted",
-				"messageId",
+				"reaction.id",
+				"reaction.reaction",
+				"reaction.channelId",
+				"reaction.createdBy",
+				"reaction.updatedAt",
+				"reaction.isDeleted",
+				"reaction.messageId",
+				"message.networkMessageId",
 			])
-			.where("channelId", "is", channelId)
-			.$narrowType<{ reaction: kysely.NotNull }>(),
+			.where("reaction.channelId", "is", channelId)
+			.where("message.networkMessageId", "is not", null)
+			.$narrowType<{ reaction: kysely.NotNull; networkMessageId: kysely.NotNull }>(),
 	);
 export type AllReactionsForChannelRow = ReturnType<
 	typeof allReactionsForChannelQuery

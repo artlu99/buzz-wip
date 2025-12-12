@@ -186,33 +186,15 @@ export function useAutoResponderState(): AutoResponderState {
 				});
 			}
 
-			// Check if we should block (> 5 in 10 seconds)
+			// Marco message tracking (logging only - no blocking)
+			// Blocking disabled: new browsers legitimately send multiple Marco messages
+			// during initial connection/reconnects. Idempotency and cooldown provide
+			// sufficient protection against spam.
 			const current = marcoCountTrackerRef.current.get(uuid);
-			if (
-				current &&
-				typeof current === "object" &&
-				"count" in current &&
-				current.count > 5
-			) {
-				const blockedUntil = Date.now() + 10000; // Block for 10 seconds
-				blocklistRef.current.set(uuid, blockedUntil);
-				const timeWindow = now - current.firstSeen;
-				console.log(
-					"[AUTORESPONDER STATE] Blocking UUID - too many Marco messages:",
-					{
-						uuid,
-						marcoCount: current.count,
-						threshold: 5,
-						timeWindowMs: timeWindow,
-						blockedUntil: new Date(blockedUntil).toISOString(),
-						reason: `Sent ${current.count} Marco messages in ${Math.round(timeWindow / 1000)}s (limit: 5 in 10s)`,
-					},
-				);
-			} else if (current && typeof current === "object" && "count" in current) {
+			if (current && typeof current === "object" && "count" in current) {
 				console.log("[AUTORESPONDER STATE] Marco message tracked:", {
 					uuid,
 					count: current.count,
-					threshold: 5,
 					timeWindowMs: now - current.firstSeen,
 				});
 			}
@@ -240,33 +222,14 @@ export function useAutoResponderState(): AutoResponderState {
 				});
 			}
 
-			// Check if we should block (> 3 in 30 seconds)
+			// Autoresponse tracking (logging only - no blocking)
+			// Blocking disabled: idempotency and cooldown provide sufficient protection.
+			// New browsers may legitimately trigger multiple autoresponses during catch-up.
 			const current = autoresponseCountTrackerRef.current.get(uuid);
-			if (
-				current &&
-				typeof current === "object" &&
-				"count" in current &&
-				current.count > 3
-			) {
-				const blockedUntil = Date.now() + 60000; // Block for 60 seconds
-				blocklistRef.current.set(uuid, blockedUntil);
-				const timeWindow = now - current.firstSeen;
-				console.log(
-					"[AUTORESPONDER STATE] Blocking UUID - too many autoresponses:",
-					{
-						uuid,
-						autoresponseCount: current.count,
-						threshold: 3,
-						timeWindowMs: timeWindow,
-						blockedUntil: new Date(blockedUntil).toISOString(),
-						reason: `Sent ${current.count} autoresponses in ${Math.round(timeWindow / 1000)}s (limit: 3 in 30s)`,
-					},
-				);
-			} else if (current && typeof current === "object" && "count" in current) {
+			if (current && typeof current === "object" && "count" in current) {
 				console.log("[AUTORESPONDER STATE] Autoresponse tracked:", {
 					uuid,
 					count: current.count,
-					threshold: 3,
 					timeWindowMs: now - current.firstSeen,
 				});
 			}

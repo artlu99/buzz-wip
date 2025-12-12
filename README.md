@@ -10,12 +10,13 @@ ephemeral public and private messages
 - [x] test transmission of secret
 - [x] (spoofable with protections) network timestamp
 - [x] history auto-responder bots
-- [ ] often hits rate limits on joining
-- [ ] option to show un-decryptable messages
+- [x] often hits rate limits on joining
+- [x] option to show un-decryptable messages
 - [ ] framer bio + status
 - [ ] show who reacted to each message
-- [-] detailed presence indications
+- [ ] detailed presence indications
 - [ ] deeplinks (with redirects to avoid data leakage in url)
+- [ ] concern about griefing / spoofing
 - [ ] rooms registry
 - [ ] forward secret encryption
 - [ ] custom reaction types for each room, incl. sticker packs

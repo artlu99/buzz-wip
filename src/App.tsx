@@ -20,12 +20,14 @@ import { OwnerActions } from "./components/OwnerActions";
 import { ProfileEditor } from "./components/ProfileEditor";
 import { AudioToggle } from "./components/ui/AudioToggle";
 import { LockdownToggle } from "./components/ui/LockdownToggle";
+import { VerboseToggle } from "./components/ui/VerboseToggle";
 import { useZustand } from "./hooks/use-zustand";
 import { evoluInstance } from "./lib/local-first";
 import { DoorbellType, WsMessageType } from "./lib/sockets";
-import PWABadge from "./PWABadge";
 import { AudioProvider } from "./providers/AudioProvider";
 import { useSocket } from "./providers/SocketProvider";
+
+// import PWABadge from "./PWABadge";
 
 function App() {
 	const socketClient = useSocket();
@@ -177,6 +179,7 @@ function App() {
 								<Route path="/settings">
 									<div className="flex flex-row gap-2">
 										<LockdownToggle />
+										<VerboseToggle />
 										<AudioToggle />
 									</div>
 								</Route>
@@ -185,7 +188,7 @@ function App() {
 					</div>
 				</AudioProvider>
 			</Suspense>
-			<PWABadge />
+			{/* <PWABadge /> */}
 		</div>
 	);
 }

@@ -19,6 +19,7 @@ export const useZustand = create(persist(combine({
 	} as UserMessageData,
 	lockdown: false,
 	playSounds: false,
+	verbose: false,
 	room: {} as Record<string, number>, // uuid -> unixTimestamp
 	uuid: undefined as OwnerId | undefined
 }, (set, get) => (
@@ -38,6 +39,7 @@ export const useZustand = create(persist(combine({
 		toggleAutoResponder: () => set({ user: { ...get().user, autoResponder: !get().user.autoResponder } }),
 		setLockdown: (lockdown: boolean) => set({ lockdown }),
 		togglePlaySounds: () => set({ playSounds: !get().playSounds }),
+		toggleVerbose: () => set({ verbose: !get().verbose}),
 		setRoom: (room: Record<string, number>) => set({ room: { ...room } }),
 		setUuid: (uuid: OwnerId | undefined) => set(
 			{ uuid }
