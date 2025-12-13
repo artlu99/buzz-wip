@@ -72,10 +72,10 @@ export const ProfileEditor = () => {
 				0,
 				100,
 			);
-			const pfpUrlTrimmed = pfpUrl.trim().slice(0, 1000);
-			const bioTrimmed = bio.trim().slice(0, 1000);
-			const statusTrimmed = status.trim().slice(0, 100);
-			const publicNtfyShIdTrimmed = publicNtfyShId.trim().slice(0, 100);
+			const pfpUrlTrimmed = (pfpUrl ?? "").trim().slice(0, 1000);
+			const bioTrimmed = (bio ?? "").trim().slice(0, 1000);
+			const statusTrimmed = (status ?? "").trim().slice(0, 100);
+			const publicNtfyShIdTrimmed = (publicNtfyShId ?? "").trim().slice(0, 100);
 
 			// String100 and String1000 are nullable types, so empty strings should be fine
 			// We'll use orThrow to ensure type safety, but provide defaults for empty strings

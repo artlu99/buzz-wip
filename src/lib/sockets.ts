@@ -77,7 +77,8 @@ export const UserMessageDataSchema = z.object({
 	pfpUrl: z.string(), // TODO: add validation for urls
 	bio: z.string(),
 	status: z.string().optional(),
-	notificationChannel: z.string().optional(),
+	publicNtfyShId: z.string().optional(),
+	autoResponder: z.boolean().optional(),
 });
 
 export interface MarcoPoloMessage {

@@ -77,6 +77,8 @@ export const RoomUsersModal = ({ isOpen, onClose }: RoomUsersModalProps) => {
 			});
 	}, [roomUuids, activeRoom, uuid]);
 
+	if (!isOpen) return null;
+
 	const doBuzz = (publicNtfyShId: string) => {
 		return (
 			<button
@@ -92,8 +94,6 @@ export const RoomUsersModal = ({ isOpen, onClose }: RoomUsersModalProps) => {
 			</button>
 		);
 	};
-
-	if (!isOpen) return null;
 
 	return (
 		<dialog

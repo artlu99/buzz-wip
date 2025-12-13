@@ -1,6 +1,7 @@
 import { NonEmptyString100, OwnerId } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
+import { fetcher } from "itty-fetcher";
 import { useMemo } from "react";
 import { useZustand } from "../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../lib/helpers";
@@ -16,6 +17,8 @@ import {
 } from "../lib/reactions";
 import { UserMessageDataSchema } from "../lib/sockets";
 
+const api = fetcher({ base: "https://ntfy.sh" });
+
 interface MessageDetailsModalProps {
 	isOpen: boolean;
 	onClose: () => void;
@@ -29,7 +32,14 @@ const UserQuery = ({
 }: {
 	uuid: string;
 	children: (
-		user: { displayName: string; pfpUrl?: string; bio?: string } | null,
+		user: {
+			uuid: string;
+			displayName: string;
+			pfpUrl?: string;
+			bio?: string;
+			status?: string;
+			publicNtfyShId?: string;
+		} | null,
 	) => React.ReactNode;
 }) => {
 	const user = useQuery(
@@ -41,9 +51,12 @@ const UserQuery = ({
 			{children(
 				userData
 					? {
+							uuid: userData.id,
 							displayName: userData.displayName ?? uuid,
 							pfpUrl: userData.pfpUrl,
 							bio: userData.bio,
+							status: userData.status,
+							publicNtfyShId: userData.publicNtfyShId,
 						}
 					: null,
 			)}
@@ -56,7 +69,7 @@ export const MessageDetailsModal = ({
 	onClose,
 	messageId,
 }: MessageDetailsModalProps) => {
-	const { channel, uuid } = useZustand();
+	const { channel, user, uuid } = useZustand();
 	const { channelId } = channel;
 
 	// Get all messages to find the specific message
@@ -101,13 +114,16 @@ export const MessageDetailsModal = ({
 		let displayName: string = message.createdBy;
 		let pfpUrl: string | undefined;
 		let bio: string | undefined;
-
+		let status: string | undefined;
+		let publicNtfyShId: string | undefined;
 		if (message.user) {
 			try {
 				const userData = UserMessageDataSchema.parse(JSON.parse(message.user));
 				displayName = userData.displayName ?? message.createdBy;
 				pfpUrl = userData.pfpUrl;
 				bio = userData.bio;
+				status = userData.status;
+				publicNtfyShId = userData.publicNtfyShId;
 			} catch {
 				// Invalid user data, use defaults
 			}
@@ -118,12 +134,30 @@ export const MessageDetailsModal = ({
 			displayName,
 			pfpUrl,
 			bio,
+			status,
+			publicNtfyShId,
 		};
 	}, [message]);
 
 	if (!isOpen || !messageId || !message) return null;
 
 	const ownerId = message.createdBy ? OwnerId.orThrow(message.createdBy) : null;
+
+	const doBuzz = (publicNtfyShId: string) => {
+		return (
+			<button
+				type="button"
+				className="btn btn-ghost btn-circle"
+				onClick={() => {
+					api.post(`/${publicNtfyShId}`, {
+						message: `Buzz from ${user.displayName}`,
+					});
+				}}
+			>
+				<i className="ph-bold ph-bell" />
+			</button>
+		);
+	};
 
 	return (
 		<dialog
@@ -163,6 +197,15 @@ export const MessageDetailsModal = ({
 									userData?.bio && userData.bio !== "<none>"
 										? userData.bio
 										: senderData.bio;
+								const status =
+									userData?.status && userData.status !== "<none>"
+										? userData.status
+										: senderData.status;
+								const publicNtfyShId =
+									userData?.publicNtfyShId &&
+									userData.publicNtfyShId !== "<none>"
+										? userData.publicNtfyShId
+										: senderData.publicNtfyShId;
 
 								return (
 									<div className="flex items-center gap-3 p-3 rounded-lg bg-base-200">
@@ -195,6 +238,16 @@ export const MessageDetailsModal = ({
 											{bio && (
 												<p className="text-sm text-base-content/70 truncate">
 													{bio}
+												</p>
+											)}
+											{status && status !== "<none>" && (
+												<p className="text-sm text-base-content/70 truncate">
+													{status}
+												</p>
+											)}
+											{publicNtfyShId && publicNtfyShId !== "<none>" && (
+												<p className="text-sm text-base-content/70 truncate">
+													Buzz me: {doBuzz(publicNtfyShId)}
 												</p>
 											)}
 										</div>
@@ -252,6 +305,16 @@ export const MessageDetailsModal = ({
 																	userData?.bio && userData.bio !== "<none>"
 																		? userData.bio
 																		: undefined;
+																const status =
+																	userData?.status &&
+																	userData.status !== "<none>"
+																		? userData.status
+																		: undefined;
+																const publicNtfyShId =
+																	userData?.publicNtfyShId &&
+																	userData.publicNtfyShId !== "<none>"
+																		? userData.publicNtfyShId
+																		: undefined;
 
 																return (
 																	<div className="flex items-center gap-2 p-2 rounded hover:bg-base-200 transition-colors">
@@ -286,6 +349,17 @@ export const MessageDetailsModal = ({
 																					{bio}
 																				</p>
 																			)}
+																			{status && status !== "<none>" && (
+																				<p className="text-sm text-base-content/70 truncate">
+																					{status}
+																				</p>
+																			)}
+																			{publicNtfyShId &&
+																				publicNtfyShId !== "<none>" && (
+																					<p className="text-sm text-base-content/70 truncate">
+																						Buzz me: {doBuzz(publicNtfyShId)}
+																					</p>
+																				)}
 																		</div>
 																	</div>
 																);
