@@ -7,7 +7,6 @@ import { useQuery } from "@evolu/react";
 import { debounce } from "radash";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
-import { Link } from "wouter";
 import { useZustand } from "../hooks/use-zustand";
 import { uint8ArrayToBase64 } from "../lib/helpers";
 import { ChannelId, channelQuery } from "../lib/local-first";
@@ -15,7 +14,7 @@ import { ChannelId, channelQuery } from "../lib/local-first";
 const SHOW_CHANNEL_NAME = false;
 
 export const MultiSelectorBlock = () => {
-	const { channel, user, uuid, setChannelId, setEncryptionKey, setEncrypted } =
+	const { channel, uuid, setChannelId, setEncryptionKey, setEncrypted } =
 		useZustand();
 	const { channelId, encrypted, encryptionKey } = channel;
 
@@ -102,11 +101,6 @@ export const MultiSelectorBlock = () => {
 
 	return (
 		<div className="flex flex-col items-center gap-2">
-			{/* User's display name */}
-			<p className="text-sm text-base-content/50">
-				<Link href="/db">{user?.displayName}</Link>
-			</p>
-
 			{/* Channel selector */}
 			<div className="flex flex-row items-center">
 				<div className="flex flex-col gap-1">

@@ -14,6 +14,7 @@
 		"@evolu/common": "^7.4.1",
 		"@evolu/react": "^10.4.0",
 		"@evolu/react-web": "^2.4.0",
+		"@headlessui/react": "^2.2.9",
 		"date-fns": "^4.1.0",
 		"itty-fetcher": "^1.0.10",
 		"itty-sockets": "^0.6.1",

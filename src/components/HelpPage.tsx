@@ -67,7 +67,7 @@ export const HelpPage = () => {
 							<strong>Your Appearance:</strong> You are assigned a unique
 							identifier + mnemonic, stored on your device. You can customize
 							your appearance (name, bio, profile picture) in the{" "}
-							<Link to="/db" className="link link-primary">
+							<Link to="/profile" className="link link-primary">
 								Profile
 							</Link>{" "}
 							section. This gets broadcast to everyone.
@@ -153,15 +153,16 @@ export const HelpPage = () => {
 							feature.
 						</p>
 						<p>
-							<strong>How to buzz someone:</strong> Click the <strong>"Room Users"</strong> button
-							on the main page. If a user has set up their public notification
-							channel, you'll see a bell icon (🔔) next to their name. Click it
-							to send them a notification that will appear on their devices,
-							even if they're not currently viewing the room.
+							<strong>How to buzz someone:</strong> Click the{" "}
+							<strong>"Room Users"</strong> button on the main page. If a user
+							has set up their public notification channel, you'll see a bell
+							icon (🔔) next to their name. Click it to send them a notification
+							that will appear on their devices, even if they're not currently
+							viewing the room.
 						</p>
 						<p>
 							<strong>Setting up your notification channel:</strong> Go to your{" "}
-							<Link to="/db" className="link link-primary">
+							<Link to="/profile" className="link link-primary">
 								Profile
 							</Link>{" "}
 							and enter your public notification channel ID in the "Notification

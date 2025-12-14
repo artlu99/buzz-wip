@@ -77,7 +77,7 @@ export const evoluInstance = createEvolu(evoluReactWebDeps)(Schema, {
 
 	transports: [
 		{ type: "WebSocket", url: "wss://evolu-relay-1.artlu.xyz" },
-		{ type: "WebSocket", url: "wss://evolu-relay-2.artlu.xyz" },
+		// { type: "WebSocket", url: "wss://evolu-relay-2.artlu.xyz" },
 		// { type: "WebSocket", url: "wss://free.evoluhq.com" },
 	],
 });
@@ -96,7 +96,17 @@ evoluInstance.subscribeError(() => {
 		return;
 	}
 
-	toast.error("🚨 Evolu error occurred! Check the console.");
+	if (error.type === "SqliteError" && error.error.type === "TransferableError") {
+		toast.error("Known issue with Private Mode. Please try regular, and clear browser history afterwards as desired.");
+		console.error(error);
+		return;
+	}
+	if (error.type === "SqliteError") {
+		toast.error("🚨 Evolu error occurred! Check the console.");
+		console.error(error);
+		return;
+	}
+
 	console.error(error);
 });
 

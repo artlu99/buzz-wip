@@ -1,4 +1,12 @@
 import { EvoluIdenticon } from "@evolu/react-web";
+import {
+	Menu,
+	MenuButton,
+	MenuItem,
+	MenuItems,
+	Transition,
+} from "@headlessui/react";
+import { Fragment } from "react";
 import { Link, useLocation } from "wouter";
 import { useZustand } from "../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../lib/helpers";
@@ -6,23 +14,102 @@ import { AutoResponderToggle } from "./ui/AutoResponderToggle";
 
 export const NavBar = () => {
 	const { user, uuid } = useZustand();
-	const [location] = useLocation();
+	const [location, navigate] = useLocation();
+
+	const isProfilePage = location === "/profile";
 
 	return (
 		<div className="navbar bg-base-100">
 			<div className="flex-1">
-				<a
-					href="https://github.com/artlu99/buzz-wip"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<i className="ph-bold ph-github-logo"></i>
-				</a>
+				<div className="flex flex-row items-center gap-2">
+					<Menu as="div" className="relative">
+						<MenuButton type="button" className="btn btn-ghost">
+							<i className="ph-bold ph-list text-2xl mr-1" />
+						</MenuButton>
+						<Transition
+							as={Fragment}
+							enter="transition ease-out duration-100"
+							enterFrom="transform opacity-0 scale-95"
+							enterTo="transform opacity-100 scale-100"
+							leave="transition ease-in duration-75"
+							leaveFrom="transform opacity-100 scale-100"
+							leaveTo="transform opacity-0 scale-95"
+						>
+							<MenuItems className="absolute left-0 mt-3 w-52 origin-top-left rounded-box bg-base-100 bg-opacity-100 shadow-lg ring-1 ring-base-300 focus:outline-none z-50 p-2">
+								<div className="menu menu-sm">
+									<MenuItem>
+										{({ focus }) => (
+											<Link
+												to="/"
+												className={`${
+													focus || location === "/" ? "bg-base-200" : ""
+												} block rounded-md px-2 py-2`}
+											>
+												Chat
+											</Link>
+										)}
+									</MenuItem>
+									<MenuItem>
+										{({ focus }) => (
+											<Link
+												to="/profile"
+												className={`${
+													focus || location === "/profile" ? "bg-base-200" : ""
+												} block rounded-md px-2 py-2`}
+											>
+												Profile
+											</Link>
+										)}
+									</MenuItem>
+									<MenuItem>
+										{({ focus }) => (
+											<Link
+												to="/settings"
+												className={`${
+													focus || location === "/settings" ? "bg-base-200" : ""
+												} block rounded-md px-2 py-2`}
+											>
+												Settings
+											</Link>
+										)}
+									</MenuItem>
+									<MenuItem>
+										{({ focus }) => (
+											<Link
+												to="/about"
+												className={`${
+													focus || location === "/about" ? "bg-base-200" : ""
+												} block rounded-md px-2 py-2`}
+											>
+												Help
+											</Link>
+										)}
+									</MenuItem>
+								</div>
+							</MenuItems>
+						</Transition>
+					</Menu>
+
+					<a
+						href="https://github.com/artlu99/buzz-wip"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						<i className="ph-bold ph-github-logo"></i>
+					</a>
+				</div>
 			</div>
 			<div className="flex-none">
-				<AutoResponderToggle />
-				<div className="dropdown dropdown-end">
-					<button type="button" className="btn btn-ghost btn-circle avatar">
+				<div className="flex flex-row gap-2">
+					<AutoResponderToggle />
+
+					<button
+						type="button"
+						className="btn btn-ghost btn-circle avatar"
+						onClick={() => {
+							navigate(isProfilePage ? "/" : "/profile");
+						}}
+					>
 						<div className="w-10 rounded-full">
 							{user.pfpUrl ? (
 								<img
@@ -43,26 +130,6 @@ export const NavBar = () => {
 								/>
 							)}
 						</div>
-					</button>
-					<button
-						type="button"
-						tabIndex={0}
-						className="menu menu-sm dropdown-content bg-base-100 bg-opacity-100 rounded-box z-50 mt-3 w-52 p-2 shadow"
-					>
-						<li className={location === "/" ? "bg-base-200" : ""}>
-							<Link to="/">Chat</Link>
-						</li>
-						<li className={location === "/db" ? "bg-base-200" : ""}>
-							<Link to="/db" className="justify-between">
-								Profile
-							</Link>
-						</li>
-						<li className={location === "/settings" ? "bg-base-200" : ""}>
-							<Link to="/settings">Settings</Link>
-						</li>
-						<li className={location === "/about" ? "bg-base-200" : ""}>
-							<Link to="/about">Help</Link>
-						</li>
 					</button>
 				</div>
 			</div>

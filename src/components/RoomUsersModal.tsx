@@ -3,6 +3,7 @@ import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { fetcher } from "itty-fetcher";
 import { useMemo } from "react";
+import { toast } from "react-hot-toast";
 import { useZustand } from "../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../lib/helpers";
 import { userQuery } from "../lib/local-first";
@@ -88,6 +89,7 @@ export const RoomUsersModal = ({ isOpen, onClose }: RoomUsersModalProps) => {
 					api.post(`/${publicNtfyShId}`, {
 						message: `Buzz from ${user.displayName}`,
 					});
+					toast.success(`You have Buzz'd ${user.displayName}!`);
 				}}
 			>
 				<i className="ph-bold ph-bell" />

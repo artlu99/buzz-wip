@@ -1,7 +1,7 @@
 import { EvoluProvider } from "@evolu/react";
 import { Suspense, useEffect, useRef } from "react";
 import { lru } from "tiny-lru";
-import { Link, Route } from "wouter";
+import { Link, Route, useLocation } from "wouter";
 import { AuthActions } from "./components/AuthActions";
 import { AvailableReactions } from "./components/AvailableReactions";
 import { Bubbles } from "./components/Bubbles";
@@ -31,9 +31,12 @@ import { useSocket } from "./providers/SocketProvider";
 // import PWABadge from "./PWABadge";
 
 function App() {
+	const [location] = useLocation();
 	const socketClient = useSocket();
 	const { channel, uuid, setRoom, setUuid } = useZustand();
 	const { channelId } = channel;
+
+	const isHomePage = location === "/";
 
 	useEffect(() => {
 		const getAppOwner = async () => {
@@ -132,7 +135,7 @@ function App() {
 
 	return (
 		<div className="min-h-screen px-8 py-2">
-			<Suspense fallback={<div>Connecting...</div>}>
+			<Suspense fallback={<div>Initializing...</div>}>
 				<AudioProvider>
 					<NavBar />
 					<div className="mx-auto max-w-md">
@@ -140,7 +143,7 @@ function App() {
 							{/* Header */}
 							<div className="mb-2 flex items-center justify-between pb-4">
 								<h1 className="w-full text-start text-xl font-semibold text-base-content">
-									<Link href="/">
+									<Link href={isHomePage ?  "/profile" : "/" }>
 										<img
 											src="/icon.svg"
 											alt="Buzz"
@@ -160,7 +163,7 @@ function App() {
 							<MarcoPoloMessageHandler />
 
 							{/* routes */}
-							<Suspense>
+							<Suspense fallback={<div>Connecting...</div>}>
 								<Route path="/">
 									<UserModals />
 									<ClearMessagesElement />
@@ -170,7 +173,7 @@ function App() {
 									<TypingIndicators />
 									<MessageSender />
 								</Route>
-								<Route path="/db">
+								<Route path="/profile">
 									<ProfileEditor />
 									<OwnerActions />
 									<AuthActions />
@@ -190,6 +193,7 @@ function App() {
 					</div>
 				</AudioProvider>
 			</Suspense>
+
 			{/* <PWABadge /> */}
 		</div>
 	);
