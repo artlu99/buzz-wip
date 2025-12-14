@@ -74,16 +74,20 @@ export const MessageSender = () => {
 		// and user input without concern for sufficient entropy
 		const { content: messageContent, encrypted: isEncrypted } =
 			prepareMessageContent(content, encrypted, encryptionKey);
+		const { content: userContent, encrypted: isUserEncrypted } =
+			prepareMessageContent(JSON.stringify(user), encrypted, encryptionKey);
 
 		const textMessage: TextMessage = {
 			uuid: uuid,
 			type: WsMessageType.TEXT,
 			content: messageContent,
-			user: user, // TODO: add encryption for user
+			user:
+				isUserEncrypted && typeof userContent !== "string" ? userContent : user,
 			channelId: channelId,
 			encrypted: isEncrypted,
 			networkMessageId: networkMessageId,
 			networkTimestamp: Date.now().toString(),
+			autoResponder: false,
 		};
 		socketClient.safeSend(textMessage);
 	};

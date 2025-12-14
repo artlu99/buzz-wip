@@ -103,10 +103,10 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
             state.recordMarcoMessage(payload.uuid);
 
             // Get current user config (in case it changed)
-            const currentUser = useZustand.getState().user;
+            const autoResponder = useZustand.getState().autoResponder;
             
             // Check if we should autorespond
-            if (!shouldAutorespond(payload, state, currentUser)) {
+            if (!shouldAutorespond(payload, state, autoResponder)) {
                 return;
             }
 
@@ -351,7 +351,7 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
             }
 
             // Check if this is from another autoResponder
-            if (payload.user.autoResponder === true && Date.now() - e.date < 200) {
+            if (payload.autoResponder === true && Date.now() - e.date < 200) {
                 // Another autoResponder is responding - cancel all our scheduled responses
                 // We don't know which Marco message they're responding to, so cancel all
                 const timeouts = state.cancelAllAutoresponses();

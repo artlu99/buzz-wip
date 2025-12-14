@@ -26,10 +26,10 @@ export function isMarcoMessage(message: MarcoPoloMessage): boolean {
 export function shouldAutorespond(
 	marcoMessage: MarcoPoloMessage,
 	state: AutoResponderState,
-	userConfig: { autoResponder: boolean },
+	autoResponder: boolean,
 ): boolean {
 	// Must have autoResponder enabled
-	if (!userConfig.autoResponder) {
+	if (!autoResponder) {
 		console.log(
 			"[AUTORESPONDER] shouldAutorespond: false - autoResponder disabled",
 		);
@@ -65,7 +65,7 @@ export function shouldAutorespond(
 
 	console.log("[AUTORESPONDER] shouldAutorespond: true - all checks passed", {
 		uuid: marcoMessage.uuid,
-		autoResponder: userConfig.autoResponder,
+		autoResponder,
 	});
 	return true;
 }
@@ -143,6 +143,7 @@ export function reconstructTextMessage(
 					encrypted: messageEncrypted,
 					networkMessageId: dbMessage.networkMessageId,
 					networkTimestamp: dbMessage.networkTimestamp ?? "",
+					autoResponder: true,
 				};
 			} else {
 				plaintextContent = dbMessage.content;
@@ -167,6 +168,7 @@ export function reconstructTextMessage(
 		encrypted: messageEncrypted,
 		networkMessageId: dbMessage.networkMessageId,
 		networkTimestamp: dbMessage.networkTimestamp || String(Date.now()),
+		autoResponder: true,
 	};
 }
 

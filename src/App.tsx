@@ -143,7 +143,7 @@ function App() {
 							{/* Header */}
 							<div className="mb-2 flex items-center justify-between pb-4">
 								<h1 className="w-full text-start text-xl font-semibold text-base-content">
-									<Link href={isHomePage ?  "/profile" : "/" }>
+									<Link href={isHomePage ? "/profile" : "/"}>
 										<img
 											src="/icon.svg"
 											alt="Buzz"

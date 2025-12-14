@@ -192,7 +192,7 @@ export const Bubbles = () => {
 			const isLast = index === sortedMessages.length - 1;
 			const payload = item.message;
 			const ownerId = OwnerId.orThrow(payload.uuid);
-			const user = payload.user;
+			const user = { displayName: payload.uuid, pfpUrl: undefined };
 			const timestamp = item.timestamp;
 			const isMine = payload.uuid === uuid;
 			const isEven = index % 2 === 0;

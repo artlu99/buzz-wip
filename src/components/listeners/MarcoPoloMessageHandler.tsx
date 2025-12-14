@@ -17,6 +17,11 @@ import {
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
+import {
+	decryptMessageContent,
+	prepareMessageContent,
+	SerializedEncryptedDataSchema,
+} from "../../lib/symmetric-encryption";
 import { useSocket } from "../../providers/SocketProvider";
 
 export const MarcoPoloMessageHandler = () => {
@@ -108,6 +113,13 @@ export const MarcoPoloMessageHandler = () => {
 			const iam: UserMessageData = {
 				...currentState.user,
 			};
+			const { content: encryptedIam, encrypted: isEncryptedIam } =
+				prepareMessageContent(
+					JSON.stringify(iam),
+					currentState.channel.encrypted,
+					currentState.channel.encryptionKey,
+				);
+
 			const thisChannel = useZustand
 				.getState()
 				.createChannelData(currentChannelId);
@@ -115,7 +127,14 @@ export const MarcoPoloMessageHandler = () => {
 				type: WsMessageType.MARCO_POLO,
 				channelId: currentChannelId,
 				uuid: uuid,
-				message: { user: iam, channel: thisChannel },
+				message: {
+					user: lockdown
+						? undefined
+						: isEncryptedIam && typeof encryptedIam !== "string"
+							? encryptedIam
+							: iam,
+					channel: thisChannel,
+				},
 			};
 			socketClient.safeSend(message);
 		} else if (keyChanged || lockdownChanged) {
@@ -128,6 +147,8 @@ export const MarcoPoloMessageHandler = () => {
 	useEffect(() => {
 		// Short-circuit if uuid is missing
 		if (!uuid) return;
+
+		const currentEncryptionKey = channel.encryptionKey;
 
 		const handler = (e: WsMessage) => {
 			if (!isMarcoPoloMessage(e.message)) {
@@ -190,21 +211,6 @@ export const MarcoPoloMessageHandler = () => {
 				[networkUuid]: Date.now(),
 			});
 
-			const displayName = String100.orThrow(
-				payload.message.user?.displayName?.slice(0, 100) ?? "<none>",
-			);
-			const pfpUrl = String1000.orThrow(
-				payload.message.user?.pfpUrl?.slice(0, 1000) ?? "<none>",
-			);
-			const bio = String1000.orThrow(
-				payload.message.user?.bio?.slice(0, 1000) ?? "",
-			);
-			const status = String100.orThrow(
-				payload.message.user?.status?.slice(0, 100) ?? "",
-			);
-			const publicNtfyShId = String100.orThrow(
-				payload.message.user?.publicNtfyShId?.slice(0, 100) ?? "",
-			);
 			// Only accept encryption key if not in lockdown (read fresh state)
 			if (payload.message.channel?.publicUselessEncryptionKey) {
 				const currentState = useZustand.getState();
@@ -215,16 +221,57 @@ export const MarcoPoloMessageHandler = () => {
 				}
 			}
 
-			upsert("user", {
-				id: createIdFromString(networkUuid),
-				networkUuid,
-				displayName,
-				pfpUrl,
-				bio,
-				status,
-				publicNtfyShId,
-				privateNtfyShId: String100.orThrow(""),
-			});
+			let user: UserMessageData | undefined;
+			const validatedEncryptedUser = SerializedEncryptedDataSchema.safeParse(
+				payload.message.user,
+			);
+			if (validatedEncryptedUser.success) {
+				if (currentEncryptionKey) {
+					const decryptedUser = decryptMessageContent(
+						validatedEncryptedUser.data,
+						currentEncryptionKey,
+					);
+					if (decryptedUser) {
+						user = JSON.parse(decryptedUser) as UserMessageData;
+					}
+				} else {
+					user = {
+						displayName: payload.uuid,
+						pfpUrl: "",
+						bio: "",
+						status: "",
+						publicNtfyShId: "",
+					};
+				}
+			} else {
+				// plaintext user data
+				user = payload.message.user as UserMessageData;
+			}
+			if (user && user.displayName !== payload.uuid) {
+				const displayName = String100.orThrow(
+					user.displayName?.slice(0, 100) ?? "<none>",
+				);
+				const pfpUrl = String1000.orThrow(
+					user.pfpUrl?.slice(0, 1000) ?? "<none>",
+				);
+				const bio = String1000.orThrow(user.bio?.slice(0, 1000) ?? "");
+				const status = String100.orThrow(user.status?.slice(0, 100) ?? "");
+				const publicNtfyShId = String100.orThrow(
+					user.publicNtfyShId?.slice(0, 100) ?? "",
+				);
+
+				upsert("user", {
+					id: createIdFromString(networkUuid),
+					networkUuid,
+					displayName,
+					pfpUrl,
+					bio,
+					status,
+					publicNtfyShId,
+					privateNtfyShId: String100.orThrow(""),
+				});
+			}
+
 			const id = createIdFromString(currentChannelId);
 			upsert("channel", {
 				id,
@@ -242,7 +289,7 @@ export const MarcoPoloMessageHandler = () => {
 
 		socketClient.on(WsMessageType.MARCO_POLO, handler);
 		// Handler reads fresh state via getState(), so lockdown doesn't need to be in dependencies
-	}, [socketClient, uuid, setRoom, setEncryptionKey, upsert]);
+	}, [socketClient, uuid, channel, setRoom, setEncryptionKey, upsert]);
 
 	return null;
 };

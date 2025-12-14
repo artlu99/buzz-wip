@@ -93,11 +93,12 @@ evoluInstance.subscribeError(() => {
 
 	if (error.type === "ProtocolQuotaError") {
 		// TODO: handle this
+		// swallow this error
 		return;
 	}
 
 	if (error.type === "SqliteError" && error.error.type === "TransferableError") {
-		toast.error("Known issue with Private Mode. Please try regular, and clear browser history afterwards as desired.");
+		toast.error("Known issue with Private Mode. Use regular mode, and clear browser history afterwards.");
 		console.error(error);
 		return;
 	}

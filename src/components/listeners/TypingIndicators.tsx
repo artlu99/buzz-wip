@@ -2,6 +2,7 @@ import { OwnerId } from "@evolu/common";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
+import { useZustand } from "../../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../../lib/helpers";
 import {
 	isTypingIndicatorWsMessage,
@@ -26,12 +27,17 @@ export const TypingIndicators = () => {
 				return;
 			}
 			const payload = e.message;
-			const id = payload.uuid ?? "unknown";
+
+			// add payload.uuid to room
+			useZustand.getState().setRoom({
+				...useZustand.getState().room,
+				[payload.uuid ?? "unknown"]: Date.now(),
+			});
 
 			if (payload.presence === TypingIndicatorType.TYPING) {
 				setTypingIndicators((prev) => {
 					const withoutExisting = prev.filter(
-						(item) => item.message.uuid !== id,
+						(item) => item.message.uuid !== payload.uuid,
 					);
 					const withoutStale = [...withoutExisting, e].filter(
 						(item) => Date.now() < new Date(item.date).getTime() + STALE_TIME,
@@ -41,7 +47,7 @@ export const TypingIndicators = () => {
 			} else if (payload.presence === TypingIndicatorType.STOP_TYPING) {
 				// Immediately remove the typing indicator for this user
 				setTypingIndicators((prev) =>
-					prev.filter((item) => item.message.uuid !== id),
+					prev.filter((item) => item.message.uuid !== payload.uuid),
 				);
 			}
 		});

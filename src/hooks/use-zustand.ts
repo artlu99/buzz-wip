@@ -21,8 +21,8 @@ export const useZustand = create(
 					bio: "",
 					publicNtfyShId: "",
 					status: "",
-					autoResponder: false,
 				} as UserMessageData,
+				autoResponder: false,
 				lockdown: false,
 				playSounds: false,
 				verbose: false,
@@ -53,10 +53,7 @@ export const useZustand = create(
 							status,
 						},
 					}),
-				toggleAutoResponder: () =>
-					set({
-						user: { ...get().user, autoResponder: !get().user.autoResponder },
-					}),
+				toggleAutoResponder: () => set({ autoResponder: !get().autoResponder }),
 				setLockdown: (lockdown: boolean) => set({ lockdown }),
 				togglePlaySounds: () => set({ playSounds: !get().playSounds }),
 				toggleVerbose: () => set({ verbose: !get().verbose }),
@@ -94,10 +91,7 @@ export const useZustand = create(
 			storage: createJSONStorage(() => localStorage),
 			partialize: (state) => ({
 				...state,
-				channel: {
-					...state.channel,
-					encryptionKey: undefined, // Don't persist encryption keys - they must be re-shared via Polo messages
-				},
+				channel: { ...state.channel },
 			}),
 		},
 	),

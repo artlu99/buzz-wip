@@ -15,10 +15,14 @@ import { messagesForChannelQuery, useEvolu } from "../../lib/local-first";
 import {
 	isTextMessage,
 	type TextMessage,
+	type UserMessageData,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
-import { decryptMessageContent } from "../../lib/symmetric-encryption";
+import {
+	decryptMessageContent,
+	SerializedEncryptedDataSchema,
+} from "../../lib/symmetric-encryption";
 import {
 	getSafeNetworkTimestamp,
 	validateNetworkTimestamp,
@@ -68,6 +72,33 @@ export const TextMessageHandler = () => {
 				}
 			}
 
+			let user: UserMessageData | undefined;
+			const validatedEncryptedUser = SerializedEncryptedDataSchema.safeParse(
+				payload.user,
+			);
+			if (validatedEncryptedUser.success) {
+				if (currentEncryptionKey) {
+					const decryptedUser = decryptMessageContent(
+						validatedEncryptedUser.data,
+						currentEncryptionKey,
+					);
+					if (decryptedUser) {
+						user = JSON.parse(decryptedUser) as UserMessageData;
+					}
+				} else {
+					user = {
+						displayName: payload.uuid,
+						pfpUrl: "",
+						bio: "",
+						status: "",
+						publicNtfyShId: "",
+					};
+				}
+			} else {
+				// plaintext user data
+				user = payload.user as UserMessageData;
+			}
+
 			const networkMessageId = NonEmptyString100.orThrow(
 				payload.networkMessageId.slice(0, 100),
 			);
@@ -80,7 +111,7 @@ export const TextMessageHandler = () => {
 				return;
 			}
 
-			const json = JSON.stringify(payload.user);
+			const json = JSON.stringify(user);
 			const userItem = NonEmptyString1000.orThrow(json);
 
 			// Validate and get safe network timestamp
@@ -109,27 +140,30 @@ export const TextMessageHandler = () => {
 				networkMessageId: networkMessageId,
 				networkTimestamp: safeNetworkTimestamp,
 			});
-
-			const networkUuid = NonEmptyString100.orThrow(payload.uuid);
-			const displayName = String100.orThrow(
-				payload.user.displayName?.slice(0, 100) ?? "<none>",
-			);
-			const pfpUrl = String1000.orThrow(
-				payload.user.pfpUrl?.slice(0, 1000) ?? "<none>",
-			);
-			const bio = String1000.orThrow(payload.user.bio?.slice(0, 1000) ?? "");
-			const status = String100.orThrow(payload.user.status?.slice(0, 100) ?? "");
-			const publicNtfyShId = String100.orThrow(payload.user.publicNtfyShId?.slice(0, 100) ?? "");
-			upsert("user", {
-				id: createIdFromString(payload.uuid),
-				networkUuid,
-				displayName,
-				pfpUrl,
-				bio,
-				status,
-				publicNtfyShId,
-				privateNtfyShId: String100.orThrow(""),
-			});
+			if (user && user.displayName !== payload.uuid) {
+				const networkUuid = NonEmptyString100.orThrow(payload.uuid);
+				const displayName = String100.orThrow(
+					user.displayName?.slice(0, 100) ?? "<none>",
+				);
+				const pfpUrl = String1000.orThrow(
+					user.pfpUrl?.slice(0, 1000) ?? "<none>",
+				);
+				const bio = String1000.orThrow(user.bio?.slice(0, 1000) ?? "");
+				const status = String100.orThrow(user.status?.slice(0, 100) ?? "");
+				const publicNtfyShId = String100.orThrow(
+					user.publicNtfyShId?.slice(0, 100) ?? "",
+				);
+				upsert("user", {
+					id: createIdFromString(payload.uuid),
+					networkUuid,
+					displayName,
+					pfpUrl,
+					bio,
+					status,
+					publicNtfyShId,
+					privateNtfyShId: String100.orThrow(""),
+				});
+			}
 		};
 
 		socketClient.on(WsMessageType.TEXT, handler);
