@@ -87,7 +87,7 @@ export interface MarcoPoloMessage {
 }
 
 export interface TextMessage {
-	uuid: string;
+	uuid: string | SerializedEncryptedData;
 	type: WsMessageType.TEXT;
 	content: string | SerializedEncryptedData;
 	user: UserMessageData | SerializedEncryptedData;

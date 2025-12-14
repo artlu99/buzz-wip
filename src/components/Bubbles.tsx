@@ -1,4 +1,9 @@
-import { NonEmptyString100, OwnerId, sqliteTrue } from "@evolu/common";
+import {
+	createIdFromString,
+	NonEmptyString100,
+	OwnerId,
+	sqliteTrue,
+} from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { alphabetical, unique } from "radash";
@@ -191,8 +196,6 @@ export const Bubbles = () => {
 			const isFirst = index === 0;
 			const isLast = index === sortedMessages.length - 1;
 			const payload = item.message;
-			const ownerId = OwnerId.orThrow(payload.uuid);
-			const user = { displayName: payload.uuid, pfpUrl: undefined };
 			const timestamp = item.timestamp;
 			const isMine = payload.uuid === uuid;
 			const isEven = index % 2 === 0;
@@ -205,25 +208,14 @@ export const Bubbles = () => {
 				>
 					<div className="chat-image">
 						<div className="w-10 rounded-full">
-							{user.pfpUrl ? (
-								<img
-									src={user.pfpUrl}
-									alt="Profile"
-									className="w-10 rounded-full"
-								/>
-							) : (
-								<EvoluIdenticon
-									id={ownerId}
-									size={40}
-									style={chosenIdenticonStyle}
-								/>
-							)}
+							<EvoluIdenticon
+								id={createIdFromString("<encrypted>")}
+								size={40}
+								style={chosenIdenticonStyle}
+							/>
 						</div>
 					</div>
-					<div className="chat-header">
-						{user.displayName ?? payload.uuid}
-						<span className="text-xs opacity-50 ml-2">(encrypted)</span>
-					</div>
+					<div className="chat-header">Anonymous Bee 🐝</div>
 					<div
 						className={`chat-bubble ${
 							isMine

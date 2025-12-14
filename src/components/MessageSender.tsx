@@ -13,11 +13,12 @@ import { TextEntry } from "./ui/TextEntry";
 
 export const MessageSender = () => {
 	const { insert, update } = useEvolu();
-	const { channel, user, uuid } = useZustand();
+	const { channel, user, uuid, lockdown } = useZustand();
 	const { channelId, encrypted, encryptionKey } = channel;
 	const socketClient = useSocket();
 
 	const handleTyping = () => {
+		if (lockdown) return;
 		const message: TypingIndicatorMessage = {
 			uuid: uuid,
 			type: WsMessageType.STATUS,
@@ -28,6 +29,7 @@ export const MessageSender = () => {
 	};
 
 	const handleStopTyping = () => {
+		if (lockdown) return;
 		const message: TypingIndicatorMessage = {
 			uuid: uuid,
 			type: WsMessageType.STATUS,
@@ -72,19 +74,21 @@ export const MessageSender = () => {
 		// this encryption protocol is not secure (yet),
 		// it uses same-band insecure secret transmission
 		// and user input without concern for sufficient entropy
-		const { content: messageContent, encrypted: isEncrypted } =
+		const { content: messageUuid, encrypted: isUuidEncrypted } =
+			prepareMessageContent(uuid, encrypted, encryptionKey);
+		const { content: messageContent, encrypted: isMessageEncrypted } =
 			prepareMessageContent(content, encrypted, encryptionKey);
 		const { content: userContent, encrypted: isUserEncrypted } =
-			prepareMessageContent(JSON.stringify(user), encrypted, encryptionKey);
+			prepareMessageContent(JSON.stringify(user), isMessageEncrypted, encryptionKey);
 
 		const textMessage: TextMessage = {
-			uuid: uuid,
+			uuid: isUuidEncrypted ? messageUuid : uuid,
 			type: WsMessageType.TEXT,
 			content: messageContent,
 			user:
 				isUserEncrypted && typeof userContent !== "string" ? userContent : user,
 			channelId: channelId,
-			encrypted: isEncrypted,
+			encrypted: isUuidEncrypted || isMessageEncrypted || isUserEncrypted,
 			networkMessageId: networkMessageId,
 			networkTimestamp: Date.now().toString(),
 			autoResponder: false,

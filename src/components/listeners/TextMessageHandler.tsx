@@ -21,6 +21,7 @@ import {
 } from "../../lib/sockets";
 import {
 	decryptMessageContent,
+	isSerializedEncryptedData,
 	SerializedEncryptedDataSchema,
 } from "../../lib/symmetric-encryption";
 import {
@@ -54,7 +55,26 @@ export const TextMessageHandler = () => {
 			const currentEncryptionKey = state.channel.encryptionKey;
 
 			if (payload.channelId !== currentChannelId) return;
-			if (payload.uuid === currentUuid) return;
+
+			if (payload.encrypted && !currentEncryptionKey) {
+				// message is encrypted but no decryption key is set
+				useGarbledStore.getState().addMessage(payload);
+				return;
+			}
+
+			let uuid: string | undefined;
+			if (isSerializedEncryptedData(payload.uuid)) {
+				uuid = decryptMessageContent(payload.uuid, currentEncryptionKey ?? "won't work");
+			} else {
+				uuid = payload.uuid;
+			}
+
+			if (uuid === currentUuid) return;
+			if (!uuid) {
+				console.warn("[TEXT HANDLER] Unable to decrypt uuid", {payload});
+				useGarbledStore.getState().addMessage(payload);
+				return;
+			}
 
 			let content: string | undefined;
 			if (typeof payload.content === "string") {
@@ -87,7 +107,7 @@ export const TextMessageHandler = () => {
 					}
 				} else {
 					user = {
-						displayName: payload.uuid,
+						displayName: uuid ?? "<encrypted>",
 						pfpUrl: "",
 						bio: "",
 						status: "",
@@ -136,12 +156,12 @@ export const TextMessageHandler = () => {
 				content: NonEmptyString1000.orThrow(content.slice(0, 1000)),
 				user: userItem,
 				channelId: NonEmptyString100.orThrow(payload.channelId.slice(0, 100)),
-				createdBy: OwnerId.orThrow(payload.uuid),
+				createdBy: OwnerId.orThrow(uuid),
 				networkMessageId: networkMessageId,
 				networkTimestamp: safeNetworkTimestamp,
 			});
 			if (user && user.displayName !== payload.uuid) {
-				const networkUuid = NonEmptyString100.orThrow(payload.uuid);
+				const networkUuid = NonEmptyString100.orThrow(uuid);
 				const displayName = String100.orThrow(
 					user.displayName?.slice(0, 100) ?? "<none>",
 				);
@@ -154,7 +174,7 @@ export const TextMessageHandler = () => {
 					user.publicNtfyShId?.slice(0, 100) ?? "",
 				);
 				upsert("user", {
-					id: createIdFromString(payload.uuid),
+					id: createIdFromString(uuid),
 					networkUuid,
 					displayName,
 					pfpUrl,

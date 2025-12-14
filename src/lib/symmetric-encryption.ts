@@ -19,6 +19,10 @@ export const SerializedEncryptedDataSchema = z.object({
 	ciphertext: z.string(),
 });
 
+export function isSerializedEncryptedData(data: unknown): data is SerializedEncryptedData {
+	return SerializedEncryptedDataSchema.safeParse(data).success;
+}
+
 /**
  * Creates a symmetric crypto instance for encryption/decryption operations.
  * This is a shared utility to avoid duplicating the crypto setup code.
