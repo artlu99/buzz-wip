@@ -63,6 +63,7 @@ export const ChannelDataSchema = z.object({
 });
 
 export interface UserMessageData {
+	uuid: string;
 	displayName: string;
 	pfpUrl: string;
 	bio: string;
@@ -72,6 +73,7 @@ export interface UserMessageData {
 
 // TODO: add validation, currently breaks at 1000 chars total JSON object
 export const UserMessageDataSchema = z.object({
+	uuid: z.string(),
 	displayName: z.string(), // can be empty but not null
 	pfpUrl: z.string(), // TODO: add validation for urls
 	bio: z.string(),
@@ -87,7 +89,6 @@ export interface MarcoPoloMessage {
 }
 
 export interface TextMessage {
-	uuid: string;
 	type: WsMessageType.TEXT;
 	content: string | SerializedEncryptedData;
 	user: UserMessageData | SerializedEncryptedData;

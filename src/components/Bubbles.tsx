@@ -1,4 +1,9 @@
-import { NonEmptyString100, OwnerId, sqliteTrue } from "@evolu/common";
+import {
+	createIdFromString,
+	NonEmptyString100,
+	OwnerId,
+	sqliteTrue,
+} from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { EvoluIdenticon } from "@evolu/react-web";
 import { alphabetical, unique } from "radash";
@@ -191,10 +196,9 @@ export const Bubbles = () => {
 			const isFirst = index === 0;
 			const isLast = index === sortedMessages.length - 1;
 			const payload = item.message;
-			const ownerId = OwnerId.orThrow(payload.uuid);
-			const user = { displayName: payload.uuid, pfpUrl: undefined };
+			const user = { displayName: "<unknown>", pfpUrl: undefined };
 			const timestamp = item.timestamp;
-			const isMine = payload.uuid === uuid;
+			const isMine = false;
 			const isEven = index % 2 === 0;
 
 			return (
@@ -213,7 +217,7 @@ export const Bubbles = () => {
 								/>
 							) : (
 								<EvoluIdenticon
-									id={ownerId}
+									id={createIdFromString(user.displayName)}
 									size={40}
 									style={chosenIdenticonStyle}
 								/>
@@ -221,7 +225,7 @@ export const Bubbles = () => {
 						</div>
 					</div>
 					<div className="chat-header">
-						{user.displayName ?? payload.uuid}
+						{user.displayName ?? "<unknown>"}
 						<span className="text-xs opacity-50 ml-2">(encrypted)</span>
 					</div>
 					<div

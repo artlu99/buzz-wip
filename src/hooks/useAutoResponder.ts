@@ -28,6 +28,7 @@ import {
     WsMessageType,
 } from "../lib/sockets";
 import { useZustand } from "./use-zustand";
+import { isSerializedEncryptedData } from "../lib/symmetric-encryption";
 
 interface UseAutoResponderOptions {
     socketClient: TypedWsClient;
@@ -346,8 +347,10 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
             }
 
             // Skip our own messages
-            if (payload.uuid === uuid) {
-                return;
+            if (!isSerializedEncryptedData(payload.user)) {
+                if (payload.user.uuid === uuid) {
+                    return;
+                }
             }
 
             // Check if this is from another autoResponder

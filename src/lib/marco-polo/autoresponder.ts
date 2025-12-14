@@ -135,7 +135,6 @@ export function reconstructTextMessage(
 				content = parsed;
 				messageEncrypted = true;
 				return {
-					uuid: dbMessage.createdBy || "",
 					type: WsMessageType.TEXT,
 					content,
 					user,
@@ -160,7 +159,6 @@ export function reconstructTextMessage(
 	messageEncrypted = messageEncryptedResult;
 
 	return {
-		uuid: dbMessage.createdBy || "",
 		type: WsMessageType.TEXT,
 		content,
 		user,

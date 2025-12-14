@@ -236,7 +236,8 @@ export const MarcoPoloMessageHandler = () => {
 					}
 				} else {
 					user = {
-						displayName: payload.uuid,
+						uuid: "<encrypted>",
+						displayName: "<unknown>",
 						pfpUrl: "",
 						bio: "",
 						status: "",
