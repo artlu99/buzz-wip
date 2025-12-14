@@ -78,6 +78,7 @@ export const MessageSender = () => {
 			prepareMessageContent(JSON.stringify(user), encrypted, encryptionKey);
 
 		const textMessage: TextMessage = {
+			uuid: uuid,
 			type: WsMessageType.TEXT,
 			content: messageContent,
 			user:

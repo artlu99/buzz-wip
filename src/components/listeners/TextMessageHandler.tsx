@@ -8,6 +8,7 @@ import {
 } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
+import invariant from "tiny-invariant";
 import { useGarbledStore } from "../../hooks/use-garbled";
 import { useZustand } from "../../hooks/use-zustand";
 import { messagesForChannelQuery, useEvolu } from "../../lib/local-first";
@@ -44,6 +45,7 @@ export const TextMessageHandler = () => {
 				return;
 			}
 			const payload: TextMessage = e.message;
+			invariant(payload.uuid, "Text message has no uuid");
 
 			// Use getState() to read current values without subscribing
 			const state = useZustand.getState();
@@ -52,6 +54,7 @@ export const TextMessageHandler = () => {
 			const currentEncryptionKey = state.channel.encryptionKey;
 
 			if (payload.channelId !== currentChannelId) return;
+			if (payload.uuid === currentUuid) return;
 
 			let content: string | undefined;
 			if (typeof payload.content === "string") {
@@ -81,20 +84,10 @@ export const TextMessageHandler = () => {
 					);
 					if (decryptedUser) {
 						user = JSON.parse(decryptedUser) as UserMessageData;
-					} else {
-						user = {
-							uuid: "<encrypted>",
-							displayName: "<unknown>",
-							pfpUrl: "",
-							bio: "",
-							status: "",
-							publicNtfyShId: "",
-						};
 					}
 				} else {
 					user = {
-						uuid: "<encrypted>",
-						displayName: "<unknown>",
+						displayName: payload.uuid,
 						pfpUrl: "",
 						bio: "",
 						status: "",
@@ -106,8 +99,6 @@ export const TextMessageHandler = () => {
 				user = payload.user as UserMessageData;
 			}
 
-			if (user.uuid === currentUuid) return;
-			
 			const networkMessageId = NonEmptyString100.orThrow(
 				payload.networkMessageId.slice(0, 100),
 			);
@@ -145,12 +136,12 @@ export const TextMessageHandler = () => {
 				content: NonEmptyString1000.orThrow(content.slice(0, 1000)),
 				user: userItem,
 				channelId: NonEmptyString100.orThrow(payload.channelId.slice(0, 100)),
-				createdBy: OwnerId.orThrow(user.uuid),
+				createdBy: OwnerId.orThrow(payload.uuid),
 				networkMessageId: networkMessageId,
 				networkTimestamp: safeNetworkTimestamp,
 			});
-			if (user && user.displayName !== user.uuid) {
-				const networkUuid = NonEmptyString100.orThrow(user.uuid);
+			if (user && user.displayName !== payload.uuid) {
+				const networkUuid = NonEmptyString100.orThrow(payload.uuid);
 				const displayName = String100.orThrow(
 					user.displayName?.slice(0, 100) ?? "<none>",
 				);
@@ -163,7 +154,7 @@ export const TextMessageHandler = () => {
 					user.publicNtfyShId?.slice(0, 100) ?? "",
 				);
 				upsert("user", {
-					id: createIdFromString(user.uuid),
+					id: createIdFromString(payload.uuid),
 					networkUuid,
 					displayName,
 					pfpUrl,
