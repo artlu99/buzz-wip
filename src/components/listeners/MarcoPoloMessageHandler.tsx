@@ -14,11 +14,13 @@ import {
 	isMarcoPoloMessage,
 	type MarcoPoloMessage,
 	type UserMessageData,
+	UserMessageDataSchema,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
 import {
 	decryptMessageContent,
+	isSerializedEncryptedData,
 	prepareMessageContent,
 	SerializedEncryptedDataSchema,
 } from "../../lib/symmetric-encryption";
@@ -221,7 +223,33 @@ export const MarcoPoloMessageHandler = () => {
 				}
 			}
 
-			let user: UserMessageData | undefined;
+			const id = createIdFromString(currentChannelId);
+			upsert("channel", {
+				id,
+				name: String100.orThrow(
+					payload.message.channel?.name?.slice(0, 100) ?? currentChannelId,
+				),
+				description: String1000.orThrow(
+					payload.message.channel?.description?.slice(0, 1000) ?? "",
+				),
+				pfpUrl: String1000.orThrow(
+					payload.message.channel?.pfpUrl?.slice(0, 1000) ?? "",
+				),
+			});
+
+			let user: UserMessageData = {
+				displayName: payload.uuid,
+				pfpUrl: "",
+				bio: "",
+				status: "",
+				publicNtfyShId: "",
+			};
+			if (
+				payload.message.user &&
+				!isSerializedEncryptedData(payload.message.user)
+			) {
+				user = payload.message.user;
+			}
 			const validatedEncryptedUser = SerializedEncryptedDataSchema.safeParse(
 				payload.message.user,
 			);
@@ -232,21 +260,23 @@ export const MarcoPoloMessageHandler = () => {
 						currentEncryptionKey,
 					);
 					if (decryptedUser) {
-						user = JSON.parse(decryptedUser) as UserMessageData;
+						const validator = UserMessageDataSchema.safeParse(decryptedUser);
+						if (validator.success) {
+							user = { ...user, ...validator.data }; // allow partial user without status, publicNtfyShId
+						} else {
+							console.warn("[MARCO HANDLER] Invalid user data", {
+								decryptedUser,
+								validator: validator.error,
+							});
+							return // no update
+						}
 					}
 				} else {
-					user = {
-						displayName: payload.uuid,
-						pfpUrl: "",
-						bio: "",
-						status: "",
-						publicNtfyShId: "",
-					};
+					return // no update
 				}
-			} else {
-				// plaintext user data
-				user = payload.message.user as UserMessageData;
 			}
+
+			// displayName === uuid is placeholder for not getting user's display name from message
 			if (user && user.displayName !== payload.uuid) {
 				const displayName = String100.orThrow(
 					user.displayName?.slice(0, 100) ?? "<none>",
@@ -271,20 +301,6 @@ export const MarcoPoloMessageHandler = () => {
 					privateNtfyShId: String100.orThrow(""),
 				});
 			}
-
-			const id = createIdFromString(currentChannelId);
-			upsert("channel", {
-				id,
-				name: String100.orThrow(
-					payload.message.channel?.name?.slice(0, 100) ?? currentChannelId,
-				),
-				description: String1000.orThrow(
-					payload.message.channel?.description?.slice(0, 1000) ?? "",
-				),
-				pfpUrl: String1000.orThrow(
-					payload.message.channel?.pfpUrl?.slice(0, 1000) ?? "",
-				),
-			});
 		};
 
 		socketClient.on(WsMessageType.MARCO_POLO, handler);

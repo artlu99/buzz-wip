@@ -14,7 +14,8 @@ ephemeral public and private messages
 - [x] option to show un-decryptable messages
 - [x] show who reacted to each message
 - [x] detailed presence indications
-- [ ] encrypt user metadata
+- [x] encrypt user metadata
+- [ ] rationalize metadata leaks for DELETE messages
 - [ ] hook for displaying status + bio + publicNtfyId
 - [ ] framer bio + status
 - [ ] deeplinks (with redirects to avoid data leakage in url)

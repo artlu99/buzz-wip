@@ -6,27 +6,37 @@ import type { ChannelData, UserMessageData } from "../lib/sockets";
 const ROOM_USERS_MAX_AGE_MS = 600000; // 10 minutes
 const ROOM_USERS_MAX_COUNT = 100;
 
+interface ChannelState {
+	channelId: NonEmptyString100;
+	encrypted: boolean;
+	encryptionKey: string | undefined;
+}
+const initialChannel: ChannelState = {
+	channelId: NonEmptyString100.orThrow("buzz-54321"),
+	encrypted: false,
+	encryptionKey: undefined ,
+}
+const initalUser: UserMessageData = {
+	displayName: "Anonymous Bee 🐝",
+	pfpUrl: "",
+	bio: "",
+	publicNtfyShId: "",
+	status: "",
+}
+
+const initialRoom: Record<string, number> = {}; // uuid -> unixTimestamp
+
 export const useZustand = create(
 	persist(
 		combine(
 			{
-				channel: {
-					channelId: NonEmptyString100.orThrow("buzz-54321"),
-					encrypted: false,
-					encryptionKey: undefined as string | undefined,
-				},
-				user: {
-					displayName: "Anonymous Bee 🐝",
-					pfpUrl: "",
-					bio: "",
-					publicNtfyShId: "",
-					status: "",
-				} as UserMessageData,
+				channel: initialChannel,
+				user: initalUser,
 				autoResponder: false,
 				lockdown: false,
 				playSounds: false,
 				verbose: false,
-				room: {} as Record<string, number>, // uuid -> unixTimestamp
+				room: initialRoom,
 				uuid: undefined as OwnerId | undefined,
 			},
 			(set, get) => ({

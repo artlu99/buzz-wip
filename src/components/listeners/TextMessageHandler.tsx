@@ -93,6 +93,9 @@ export const TextMessageHandler = () => {
 			}
 
 			let user: UserMessageData | undefined;
+			if (payload.user && !isSerializedEncryptedData(payload.user)) {
+				user = payload.user;
+			} else {
 			const validatedEncryptedUser = SerializedEncryptedDataSchema.safeParse(
 				payload.user,
 			);
@@ -113,11 +116,8 @@ export const TextMessageHandler = () => {
 						status: "",
 						publicNtfyShId: "",
 					};
-				}
-			} else {
-				// plaintext user data
-				user = payload.user as UserMessageData;
-			}
+				}}
+			};
 
 			const networkMessageId = NonEmptyString100.orThrow(
 				payload.networkMessageId.slice(0, 100),

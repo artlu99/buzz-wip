@@ -61,13 +61,15 @@ export const MessageSender = () => {
 		update("message", { id: networkMessageId, networkMessageId });
 
 		// Send STOP_TYPING indicator
-		const stopTypingMessage: TypingIndicatorMessage = {
-			uuid: uuid,
-			type: WsMessageType.STATUS,
-			presence: TypingIndicatorType.STOP_TYPING,
-			channelId: channelId,
-		};
-		socketClient.safeSend(stopTypingMessage);
+		if (!lockdown) {
+			const stopTypingMessage: TypingIndicatorMessage = {
+				uuid: uuid,
+				type: WsMessageType.STATUS,
+				presence: TypingIndicatorType.STOP_TYPING,
+				channelId: channelId,
+			};
+			socketClient.safeSend(stopTypingMessage);
+		}
 
 		// Send the TEXT message over websocket
 		// Note: timestamp comes from envelope (e.date), not from payload
@@ -79,7 +81,11 @@ export const MessageSender = () => {
 		const { content: messageContent, encrypted: isMessageEncrypted } =
 			prepareMessageContent(content, encrypted, encryptionKey);
 		const { content: userContent, encrypted: isUserEncrypted } =
-			prepareMessageContent(JSON.stringify(user), isMessageEncrypted, encryptionKey);
+			prepareMessageContent(
+				JSON.stringify(user),
+				isMessageEncrypted,
+				encryptionKey,
+			);
 
 		const textMessage: TextMessage = {
 			uuid: isUuidEncrypted ? messageUuid : uuid,
