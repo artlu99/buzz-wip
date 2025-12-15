@@ -18,6 +18,7 @@ import {
 } from "../../lib/local-first";
 import {
 	isReactionMessage,
+	type KnownMessage,
 	type ReactionMessage,
 	type WsMessage,
 	WsMessageType,
@@ -56,7 +57,7 @@ export const ReactionMessageHandler = () => {
 	);
 
 	useEffect(() => {
-		const handler = (e: WsMessage) => {
+		const handler = (e: WsMessage<KnownMessage>) => {
 			if (!isReactionMessage(e.message)) return;
 
 			const payload: ReactionMessage = e.message;

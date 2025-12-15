@@ -13,6 +13,7 @@ import {
 import {
 	type DeleteMessage,
 	isDeleteMessage,
+	type KnownMessage,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
@@ -44,7 +45,7 @@ export const DeleteMessageHandler = () => {
 	);
 
 	useEffect(() => {
-		const handler = (e: WsMessage) => {
+		const handler = (e: WsMessage<KnownMessage>) => {
 			if (!isDeleteMessage(e.message)) return;
 
 			const payload: DeleteMessage = e.message;

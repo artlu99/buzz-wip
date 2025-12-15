@@ -110,17 +110,17 @@ export const NavBar = () => {
 							navigate(isProfilePage ? "/" : "/profile");
 						}}
 					>
-						<div className="w-10 rounded-full">
+						<div className="w-8">
 							{user.pfpUrl ? (
 								<img
 									src={user.pfpUrl}
 									alt="Profile"
-									className="w-10 rounded-full"
+									className="w-8 rounded-full"
 								/>
 							) : uuid ? (
 								<EvoluIdenticon
 									id={uuid}
-									size={40}
+									size={24}
 									style={chosenIdenticonStyle}
 								/>
 							) : (

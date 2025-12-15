@@ -1,7 +1,7 @@
 import { NonEmptyString100, type OwnerId } from "@evolu/common";
 import { create } from "zustand";
 import { combine, createJSONStorage, persist } from "zustand/middleware";
-import type { ChannelData, UserMessageData } from "../lib/sockets";
+import { type ChannelData, type UserMessageData, WSS_SERVER_URL } from "../lib/sockets";
 
 const ROOM_USERS_MAX_AGE_MS = 600000; // 10 minutes
 const ROOM_USERS_MAX_COUNT = 100;
@@ -30,6 +30,7 @@ export const useZustand = create(
 	persist(
 		combine(
 			{
+				wssServer: WSS_SERVER_URL,
 				channel: initialChannel,
 				user: initalUser,
 				autoResponder: false,
@@ -40,6 +41,7 @@ export const useZustand = create(
 				uuid: undefined as OwnerId | undefined,
 			},
 			(set, get) => ({
+				setWssServer: (wssServer: string) => set({ wssServer }),
 				setChannelId: (channelId: NonEmptyString100) =>
 					set({ channel: { ...get().channel, channelId } }),
 				setEncrypted: (encrypted: boolean) =>

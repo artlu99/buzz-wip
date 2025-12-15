@@ -12,6 +12,7 @@ import { useAutoResponder } from "../../hooks/useAutoResponder";
 import { useEvolu } from "../../lib/local-first";
 import {
 	isMarcoPoloMessage,
+	type KnownMessage,
 	type MarcoPoloMessage,
 	type UserMessageData,
 	UserMessageDataSchema,
@@ -152,7 +153,7 @@ export const MarcoPoloMessageHandler = () => {
 
 		const currentEncryptionKey = channel.encryptionKey;
 
-		const handler = (e: WsMessage) => {
+		const handler = (e: WsMessage<KnownMessage>) => {
 			if (!isMarcoPoloMessage(e.message)) {
 				return;
 			}

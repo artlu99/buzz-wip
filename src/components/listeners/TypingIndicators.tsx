@@ -5,9 +5,10 @@ import invariant from "tiny-invariant";
 import { useZustand } from "../../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../../lib/helpers";
 import {
-	isTypingIndicatorWsMessage,
+	isTypingIndicatorMessage,
+	type KnownMessage,
+	type TypingIndicatorMessage,
 	TypingIndicatorType,
-	type TypingIndicatorWsMessage,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
@@ -17,16 +18,16 @@ const STALE_TIME = 5000; // 5 seconds
 
 export const TypingIndicators = () => {
 	const [typingIndicators, setTypingIndicators] = useState<
-		TypingIndicatorWsMessage[]
+		WsMessage<TypingIndicatorMessage>[]
 	>([]);
 	const socketClient = useSocket();
 
 	useEffect(() => {
-		socketClient.on(WsMessageType.STATUS, (e: WsMessage) => {
-			if (!isTypingIndicatorWsMessage(e)) {
+		socketClient.on(WsMessageType.STATUS, (e: WsMessage<KnownMessage>) => {
+			if (!isTypingIndicatorMessage(e.message)) {
 				return;
 			}
-			const payload = e.message;
+			const payload: TypingIndicatorMessage = e.message;
 
 			// add payload.uuid to room
 			useZustand.getState().setRoom({
@@ -39,7 +40,11 @@ export const TypingIndicators = () => {
 					const withoutExisting = prev.filter(
 						(item) => item.message.uuid !== payload.uuid,
 					);
-					const withoutStale = [...withoutExisting, e].filter(
+					const typedMessage: WsMessage<TypingIndicatorMessage> = {
+						...e,
+						message: payload,
+					};
+					const withoutStale = [...withoutExisting, typedMessage].filter(
 						(item) => Date.now() < new Date(item.date).getTime() + STALE_TIME,
 					);
 					return withoutStale;

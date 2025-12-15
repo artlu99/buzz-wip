@@ -14,6 +14,7 @@ import { useZustand } from "../../hooks/use-zustand";
 import { messagesForChannelQuery, useEvolu } from "../../lib/local-first";
 import {
 	isTextMessage,
+	type KnownMessage,
 	type TextMessage,
 	type UserMessageData,
 	type WsMessage,
@@ -41,7 +42,7 @@ export const TextMessageHandler = () => {
 	allMessagesRef.current = allMessages;
 
 	useEffect(() => {
-		const handler = (e: WsMessage) => {
+		const handler = (e: WsMessage<KnownMessage>) => {
 			if (!isTextMessage(e.message)) {
 				return;
 			}
@@ -64,14 +65,17 @@ export const TextMessageHandler = () => {
 
 			let uuid: string | undefined;
 			if (isSerializedEncryptedData(payload.uuid)) {
-				uuid = decryptMessageContent(payload.uuid, currentEncryptionKey ?? "won't work");
+				uuid = decryptMessageContent(
+					payload.uuid,
+					currentEncryptionKey ?? "won't work",
+				);
 			} else {
 				uuid = payload.uuid;
 			}
 
 			if (uuid === currentUuid) return;
 			if (!uuid) {
-				console.warn("[TEXT HANDLER] Unable to decrypt uuid", {payload});
+				console.warn("[TEXT HANDLER] Unable to decrypt uuid", { payload });
 				useGarbledStore.getState().addMessage(payload);
 				return;
 			}
@@ -96,28 +100,29 @@ export const TextMessageHandler = () => {
 			if (payload.user && !isSerializedEncryptedData(payload.user)) {
 				user = payload.user;
 			} else {
-			const validatedEncryptedUser = SerializedEncryptedDataSchema.safeParse(
-				payload.user,
-			);
-			if (validatedEncryptedUser.success) {
-				if (currentEncryptionKey) {
-					const decryptedUser = decryptMessageContent(
-						validatedEncryptedUser.data,
-						currentEncryptionKey,
-					);
-					if (decryptedUser) {
-						user = JSON.parse(decryptedUser) as UserMessageData;
+				const validatedEncryptedUser = SerializedEncryptedDataSchema.safeParse(
+					payload.user,
+				);
+				if (validatedEncryptedUser.success) {
+					if (currentEncryptionKey) {
+						const decryptedUser = decryptMessageContent(
+							validatedEncryptedUser.data,
+							currentEncryptionKey,
+						);
+						if (decryptedUser) {
+							user = JSON.parse(decryptedUser) as UserMessageData;
+						}
+					} else {
+						user = {
+							displayName: uuid ?? "<encrypted>",
+							pfpUrl: "",
+							bio: "",
+							status: "",
+							publicNtfyShId: "",
+						};
 					}
-				} else {
-					user = {
-						displayName: uuid ?? "<encrypted>",
-						pfpUrl: "",
-						bio: "",
-						status: "",
-						publicNtfyShId: "",
-					};
-				}}
-			};
+				}
+			}
 
 			const networkMessageId = NonEmptyString100.orThrow(
 				payload.networkMessageId.slice(0, 100),

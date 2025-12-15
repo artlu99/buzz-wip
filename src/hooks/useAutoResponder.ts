@@ -15,7 +15,7 @@ import {
     lastNReactionsQuery,
     lastNTextMessagesQuery,
 } from "../lib/marco-polo/queries";
-import type { TypedWsClient } from "../lib/sockets";
+import type { KnownMessage, TypedWsClient } from "../lib/sockets";
 import {
     type DeleteMessage,
     isMarcoPoloMessage,
@@ -79,7 +79,7 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
     useEffect(() => {
         if (!uuid) return;
 
-        const handler = (e: WsMessage) => {
+        const handler = (e: WsMessage<KnownMessage>) => {
             if (!isMarcoPoloMessage(e.message)) {
                 return;
             }
@@ -335,7 +335,7 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
     useEffect(() => {
         if (!uuid) return;
 
-        const handler = (e: WsMessage) => {
+        const handler = (e: WsMessage<KnownMessage>) => {
             if (!isTextMessage(e.message)) {
                 return;
             }
@@ -371,7 +371,7 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
     useEffect(() => {
         if (!uuid) return;
 
-        const handler = (e: WsMessage) => {
+        const handler = (e: WsMessage<KnownMessage>) => {
             if (!isReactionMessage(e.message)) {
                 return;
             }

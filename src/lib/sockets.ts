@@ -2,14 +2,16 @@ import { connect, type IttySocket } from "itty-sockets";
 import { z } from "zod";
 import type { SerializedEncryptedData } from "./symmetric-encryption";
 
+export const WSS_SERVER_URL = "wss://itty.ws";
+
 // constants for message matching, de-duplication, and cleanup
 const CLEANUP_INTERVAL_MS = 10000; // 10 seconds
 
-export type WsMessage = {
+export interface WsMessage<T> {
 	date: number; // Unix timestamp of original message
 	uid: string; // unique user ID of the sending connection
-	message: unknown; // your message payload
-};
+	message: T; // your message payload
+}
 
 export enum WsMessageType {
 	DOORBELL = "doorbell",
@@ -122,6 +124,8 @@ export interface RefreshMessage {
 	channelId: string; // plaintext
 }
 
+export type KnownMessage = TypingIndicatorMessage | DoorbellMessage | MarcoPoloMessage | TextMessage | ReactionMessage | DeleteMessage | RefreshMessage;
+
 export function isTypingIndicatorMessage(
 	message: unknown,
 ): message is TypingIndicatorMessage {
@@ -210,23 +214,18 @@ export function isRefreshMessage(message: unknown): message is RefreshMessage {
 	);
 }
 
-export type TypingIndicatorWsMessage = WsMessage & {
-	message: TypingIndicatorMessage;
-};
+	 
 
-export function isTypingIndicatorWsMessage(
-	wsMessage: WsMessage,
-): wsMessage is TypingIndicatorWsMessage {
-	return isTypingIndicatorMessage(wsMessage.message);
-}
 
 export class TypedWsClient {
 	private socket: IttySocket;
 	private seenMessages: Set<string> = new Set();
 	private cleanupInterval: number | null = null;
 
-	constructor(channelId: string) {
-		this.socket = connect(channelId);
+	constructor(channelId: string, wssServer: string) {
+		this.socket = connect(channelId, {
+			server: wssServer,
+		});
 		// Clean up old message IDs periodically to prevent memory leaks
 		this.cleanupInterval = window.setInterval(() => {
 			// The Set will naturally handle cleanup as we only add recent messages
@@ -246,7 +245,7 @@ export class TypedWsClient {
 		return this.socket;
 	}
 
-	private getMessageKey(wsMessage: WsMessage): string | null {
+	private getMessageKey(wsMessage: WsMessage<KnownMessage>): string | null {
 		const { message } = wsMessage;
 
 		// De-dup TEXT messages
@@ -271,7 +270,7 @@ export class TypedWsClient {
 		return null;
 	}
 
-	private isDuplicate(wsMessage: WsMessage): boolean {
+	private isDuplicate(wsMessage: WsMessage<KnownMessage>): boolean {
 		const key = this.getMessageKey(wsMessage);
 		if (!key) return false;
 
@@ -281,8 +280,8 @@ export class TypedWsClient {
 		return false;
 	}
 
-	public on(event: WsMessageType, callback: (message: WsMessage) => void) {
-		this.socket.on(event as string, (wsMessage: WsMessage) => {
+	public on(event: WsMessageType, callback: (message: WsMessage<KnownMessage>) => void) {
+		this.socket.on(event as string, (wsMessage: WsMessage<KnownMessage>) => {
 			// De-duplicate before calling the callback
 			if (this.isDuplicate(wsMessage)) {
 				return; // Skip duplicate message

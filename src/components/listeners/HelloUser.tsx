@@ -7,18 +7,19 @@ import {
 	type DoorbellMessage,
 	DoorbellType,
 	isDoorbellMessage,
+	type KnownMessage,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
 import { useSocket } from "../../providers/SocketProvider";
 
 export const HelloUser = () => {
-	const [hello, setHello] = useState<WsMessage | null>(null);
+	const [hello, setHello] = useState<WsMessage<KnownMessage> | null>(null);
 	const socketClient = useSocket();
 	const { setRoom } = useZustand();
 
 	useEffect(() => {
-		socketClient.on(WsMessageType.DOORBELL, (e: WsMessage) => {
+		socketClient.on(WsMessageType.DOORBELL, (e: WsMessage<KnownMessage>) => {
 			if (!isDoorbellMessage(e.message)) {
 				return;
 			}

@@ -5,14 +5,14 @@ import { DoorbellType, TypedWsClient, WsMessageType } from "../lib/sockets";
 const SocketContext = createContext<TypedWsClient | null>(null);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-	const { channel, uuid } = useZustand();
+	const { channel, uuid, wssServer } = useZustand();
 	const { channelId } = channel;
 	// Create socket client synchronously on initial mount if in browser
 	const [socketClient, setSocketClient] = useState<TypedWsClient | null>(() => {
 		if (typeof window === "undefined" || typeof document === "undefined") {
 			return null;
 		}
-		return new TypedWsClient(channelId);
+		return new TypedWsClient(channelId, wssServer);
 	});
 	const previousClientRef = useRef<TypedWsClient | null>(null);
 	const isInitialMountRef = useRef(true);
@@ -59,7 +59,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 		}
 
 		// Create new socket client for the channel
-		const client = new TypedWsClient(channelId);
+		const client = new TypedWsClient(channelId, wssServer);
 		setSocketClient(client);
 		previousClientRef.current = client;
 		previouschannelIdRef.current = channelId;
@@ -81,7 +81,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 			}
 			client.destroy();
 		};
-	}, [channelId, uuid]);
+	}, [channelId, uuid, wssServer]);
 
 	// Always provide the context, even if socketClient is null (for SSR)
 	return (

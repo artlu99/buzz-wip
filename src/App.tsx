@@ -21,6 +21,7 @@ import { ProfileEditor } from "./components/ProfileEditor";
 import { UserModals } from "./components/UserModals";
 import { AudioToggle } from "./components/ui/AudioToggle";
 import { LockdownToggle } from "./components/ui/LockdownToggle";
+import { SocketServerSelector } from "./components/ui/SocketServerSelector";
 import { VerboseToggle } from "./components/ui/VerboseToggle";
 import { useZustand } from "./hooks/use-zustand";
 import { evoluInstance } from "./lib/local-first";
@@ -134,11 +135,11 @@ function App() {
 	}, [channelId, uuid, socketClient]);
 
 	return (
-		<div className="min-h-screen px-8 py-2">
+		<div className="min-h-screen">
 			<Suspense fallback={<div>Initializing...</div>}>
 				<AudioProvider>
 					<NavBar />
-					<div className="mx-auto max-w-md">
+					<div className="mx-auto max-w-md px-8 py-2">
 						<EvoluProvider value={evoluInstance}>
 							{/* Header */}
 							<div className="mb-2 flex items-center justify-between pb-4">
@@ -182,10 +183,11 @@ function App() {
 									<HelpPage />
 								</Route>
 								<Route path="/settings">
-									<div className="flex flex-row gap-2">
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 										<LockdownToggle />
 										<VerboseToggle />
 										<AudioToggle />
+										<SocketServerSelector />
 									</div>
 								</Route>
 							</Suspense>
