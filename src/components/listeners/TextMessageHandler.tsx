@@ -17,6 +17,7 @@ import {
 	type KnownMessage,
 	type TextMessage,
 	type UserMessageData,
+	UserMessageDataSchema,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
@@ -110,7 +111,26 @@ export const TextMessageHandler = () => {
 							currentEncryptionKey,
 						);
 						if (decryptedUser) {
-							user = JSON.parse(decryptedUser) as UserMessageData;
+							const validator = UserMessageDataSchema.safeParse(decryptedUser);
+							if (validator.success) {
+								user = {
+									...validator.data,
+									status: validator.data.status ?? "",
+									publicNtfyShId: validator.data.publicNtfyShId ?? "",
+								};
+							} else {
+								console.warn("[TEXT HANDLER] Invalid user data", {
+									decryptedUser,
+									validator: validator.error,
+								});
+								user = {
+									displayName: uuid ?? "<encrypted>",
+									pfpUrl: "",
+									bio: "",
+									status: "",
+									publicNtfyShId: "",
+								};
+							}
 						}
 					} else {
 						user = {

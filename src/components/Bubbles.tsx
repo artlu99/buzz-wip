@@ -252,11 +252,17 @@ export const Bubbles = () => {
 			: null;
 		if (!ownerId) return null;
 
-		const validator = UserMessageDataSchema.safeParse(
-			JSON.parse(regularItem.user ?? "{}"),
-		);
+		let parsedUser: unknown;
+		try {
+			parsedUser = JSON.parse(regularItem.user ?? "{}");
+		} catch (error) {
+			console.error("Failed to parse user JSON", error);
+			return null;
+		}
+
+		const validator = UserMessageDataSchema.safeParse(parsedUser);
 		if (!validator.success) {
-			console.error("Failed to parse user data", validator.error);
+			console.error("Failed to validate user data", validator.error);
 			return null;
 		}
 		const user = validator.data;

@@ -107,10 +107,13 @@ export const HelpPage = () => {
 						</p>
 						<p>
 							The encryption is fragile by design, as{" "}
-							<em>messages belong to everyone who has seen them</em>. Keys are
-							meant to be disposable, and convenient to rotate (1 click and it's
-							ready to use!). The only requirement is that someone happens to be
-							listening in real time.
+							<em>
+								shared messages belong to everyone who has seen them, not just
+								the sender
+							</em>
+							. Keys are meant to be disposable, and convenient to rotate (1
+							click and it's ready to use!). The only requirement is that
+							someone happens to be listening in real time.
 						</p>
 					</div>
 				</section>
