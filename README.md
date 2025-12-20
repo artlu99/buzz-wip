@@ -5,12 +5,12 @@ ephemeral public and private messages
 ## TESTING PUNCHLIST
 
 - [x] fix socket connection (add /c/ to url)
+- [x] [SECURITY] encrypt typing/not typing status updates
+- [x] [SECURITY] rethink typing indicators (and timing right before sending)
 - [ ] [UI] hide/show Channel Salt as password input, not plaintext
 - [ ] [UI] make salt easier to access/see (you have a non-default *salt*)
 - [ ] [TYPES] something is unexpectedly empty in validateDeleteTimestamp
-- [ ] [SECURITY] encrypt typing/not typing status updates
 - [ ] [UX] consider guard: only allow autoresponder with encrypted on? not helpful for leavers
-- [ ] [SECURITY] rethink typing indicators (and timing right before sending)
 
 ## TODO
 

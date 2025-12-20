@@ -13,7 +13,7 @@ interface ChannelState {
 	channelSalt: string | undefined;
 }
 const initialChannel: ChannelState = {
-	channelId: NonEmptyString100.orThrow("buzz-54321-regression-test"),
+	channelId: NonEmptyString100.orThrow("buzz-54321"),
 	encrypted: false,
 	encryptionKey: undefined,
 	channelSalt: undefined,

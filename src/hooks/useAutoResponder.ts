@@ -4,7 +4,6 @@ import { cluster } from "radash";
 import { useEffect, useRef } from "react";
 import { useAutoResponderState } from "../components/listeners/AutoResponderState";
 import {
-    calculateRandomDelay,
     isMarcoMessage,
     reconstructDeleteMessage,
     reconstructReactionMessage,
@@ -65,10 +64,6 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
     const reactionsRef = useRef(reactions);
     reactionsRef.current = reactions;
 
-    // Track messages scheduled to send (prevents race conditions when multiple Marco messages arrive)
-    // Key: networkMessageId or reactionKey, Value: timestamp when scheduled
-    const scheduledMessagesRef = useRef(new Set<string>());
-
     // Debug logging for query results
     useEffect(() => {
         console.log("[AUTORESPONDER] Query results updated:", {
@@ -116,9 +111,6 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 return;
             }
 
-            // Track Marco message for spam detection
-            state.recordMarcoMessage(payload.uuid);
-
             // Get current user config (in case it changed)
             const autoResponder = useZustand.getState().autoResponder;
             
@@ -138,8 +130,11 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 channelId: payload.channelId,
             });
 
-            // Calculate random delay
-            const delay = calculateRandomDelay(0, 500);
+            // Small random delay (0-200ms) to prevent network swarming when multiple
+            // autoresponders respond to the same Marco message simultaneously.
+            // Also helps if React render loops cause rapid re-renders.
+            // Idempotency checks still prevent duplicate sends.
+            const delay = Math.floor(Math.random() * 200);
 
             // Schedule autoresponse
             const marcoUuid = payload.uuid;
@@ -194,17 +189,13 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 }
                 processedNetworkIds.add(dbMessage.networkMessageId);
 
-                // Check idempotency: already heard, already sent, or already scheduled
+                // Check idempotency: already heard or already sent
                 if (
                     state.hasHeardMessage(dbMessage.networkMessageId, 10000) ||
-                    state.hasSentMessage(dbMessage.networkMessageId, 10000) ||
-                    scheduledMessagesRef.current.has(dbMessage.networkMessageId)
+                    state.hasSentMessage(dbMessage.networkMessageId, 10000)
                 ) {
                     continue;
                 }
-
-                // Mark as scheduled immediately to prevent duplicates
-                scheduledMessagesRef.current.add(dbMessage.networkMessageId);
 
                 if (dbMessage.isDeleted === sqliteTrue) {
                     // Send DELETE message
@@ -272,19 +263,14 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 const reactionKey = `${dbReaction.networkMessageId}:${dbReaction.createdBy}:${dbReaction.reaction}:${dbReaction.isDeleted === sqliteTrue}`;
                 const hasHeard = state.hasHeardMessage(reactionKey, 10000);
                 const hasSent = state.hasSentMessage(reactionKey, 10000);
-                const isScheduled = scheduledMessagesRef.current.has(reactionKey);
-                if (hasHeard || hasSent || isScheduled) {
+                if (hasHeard || hasSent) {
                     console.log("[AUTORESPONDER] Skipping reaction - idempotency check:", {
                         reactionKey,
                         hasHeard,
                         hasSent,
-                        isScheduled,
                     });
                     continue;
                 }
-
-                // Mark as scheduled immediately to prevent duplicates
-                scheduledMessagesRef.current.add(reactionKey);
 
                 // Reconstruct REACTION message
                 const reactionMsg = reconstructReactionMessage(
@@ -320,16 +306,12 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 // Double-check we should still respond (might have been cancelled)
                 const scheduledTimeout = state.cancelAutoresponse(marcoUuid);
                 if (!scheduledTimeout) {
-                    // Was cancelled - remove from scheduled set
-                    for (const msg of messagesToSend) {
-                        scheduledMessagesRef.current.delete(msg.networkMessageId);
-                    }
+                    // Was cancelled - idempotency checks will prevent re-sending
                     return;
                 }
 
                 // Record autoresponse
                 if (marcoUuid) {
-                    state.recordAutoresponse(marcoUuid);
                     state.updateCooldown(marcoUuid);
                 }
 
@@ -348,17 +330,16 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                     textMessagesCount: sortedMessages.length,
                 });
 
-                // Record messages as sent (they were already marked as scheduled)
+                // Record messages as sent (idempotency tracking prevents duplicates)
                 for (const msg of sortedMessages) {
                     state.recordSentMessage(msg.idempotencyKey);
-                    // Remove from scheduled set (now in sentByUsRef)
-                    scheduledMessagesRef.current.delete(msg.idempotencyKey);
                 }
 
                 // Send messages in batches to avoid network flooding
-                // Batch size: 50 messages, delay: 100ms between batches
+                // Batch size: 50 messages, small delay between batches for network health
+                // The delay helps prevent overwhelming the network when sending many messages
                 const BATCH_SIZE = 50;
-                const BATCH_DELAY_MS = 100;
+                const BATCH_DELAY_MS = 50; // Small delay to prevent network swarming
 
                 const sendBatches = async () => {
                     const batches = cluster(sortedMessages, BATCH_SIZE);

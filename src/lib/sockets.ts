@@ -232,9 +232,6 @@ export function isEncryptedMessage(message: unknown): message is EncryptedMessag
 	);
 }
 
-	 
-
-
 export class TypedWsClient {
 	private socket: IttySocket;
 	private seenMessages: Set<string> = new Set();

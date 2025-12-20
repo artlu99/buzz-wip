@@ -11,8 +11,8 @@ import { useZustand } from "../../hooks/use-zustand";
 import { useAutoResponder } from "../../hooks/useAutoResponder";
 import { useEvolu } from "../../lib/local-first";
 import {
-	isMarcoPoloMessage,
 	isEncryptedMessage,
+	isMarcoPoloMessage,
 	type KnownMessage,
 	type MarcoPoloMessage,
 	type UserMessageData,

@@ -25,7 +25,12 @@ export const MessageSender = () => {
 			presence: TypingIndicatorType.TYPING,
 			channelId: channelId,
 		};
-		socketClient.safeSend(message);
+		const messageToSend = prepareEncryptedMessage(
+			message,
+			encrypted,
+			encryptionKey,
+		);
+		socketClient.safeSend(messageToSend);
 	};
 
 	const handleStopTyping = () => {
@@ -36,7 +41,12 @@ export const MessageSender = () => {
 			presence: TypingIndicatorType.STOP_TYPING,
 			channelId: channelId,
 		};
-		socketClient.safeSend(message);
+		const messageToSend = prepareEncryptedMessage(
+			message,
+			encrypted,
+			encryptionKey,
+		);
+		socketClient.safeSend(messageToSend);
 	};
 
 	const handleSend = async (content: string): Promise<void> => {
@@ -75,8 +85,8 @@ export const MessageSender = () => {
 
 		// Send the TEXT message over websocket
 		// Note: timestamp comes from envelope (e.date), not from payload
-		// this encryption protocol is not secure (yet),
-		// it uses same-band insecure secret transmission
+		// this encryption protocol is not secure under most conditions,
+		// it uses same-band insecure secret transmission by default
 		// and user input without concern for sufficient entropy
 		const textMessage: TextMessage = {
 			uuid,

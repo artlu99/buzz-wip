@@ -5,6 +5,7 @@ import invariant from "tiny-invariant";
 import { useZustand } from "../../hooks/use-zustand";
 import { chosenIdenticonStyle } from "../../lib/helpers";
 import {
+	isEncryptedMessage,
 	isTypingIndicatorMessage,
 	type KnownMessage,
 	type TypingIndicatorMessage,
@@ -12,6 +13,7 @@ import {
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
+import { decryptMessagePayload } from "../../lib/symmetric-encryption";
 import { useSocket } from "../../providers/SocketProvider";
 
 const STALE_TIME = 5000; // 5 seconds
@@ -25,10 +27,25 @@ export const TypingIndicators = () => {
 	useEffect(() => {
 		if (!socketClient) return;
 		socketClient.on(WsMessageType.STATUS, (e: WsMessage<KnownMessage>) => {
-			if (!isTypingIndicatorMessage(e.message)) {
+			let message = e.message;
+
+			// Handle encryption at the top level
+			if (isEncryptedMessage(message)) {
+				const decrypted = decryptMessagePayload<TypingIndicatorMessage>(
+					message,
+					useZustand.getState().channel.encryptionKey ?? "",
+				);
+				if (!decrypted) {
+					// If we can't decrypt it, it might not be for us or we don't have the key yet
+					return;
+				}
+				message = decrypted;
+			}
+
+			if (!isTypingIndicatorMessage(message)) {
 				return;
 			}
-			const payload: TypingIndicatorMessage = e.message;
+			const payload: TypingIndicatorMessage = message;
 
 			// add payload.uuid to room
 			useZustand.getState().setRoom({
