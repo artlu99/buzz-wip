@@ -157,8 +157,6 @@ function App() {
 								</Route>
 								<Route path="/profile">
 									<ProfileEditor />
-									<OwnerActions />
-									<AuthActions />
 								</Route>
 								<Route path="/about">
 									<HelpPage />
@@ -170,6 +168,8 @@ function App() {
 										<AudioToggle />
 										<SaltSelector />
 										<SocketServerSelector />
+										<div className="col-span-2"><OwnerActions /></div>
+										<div className="col-span-2"><AuthActions /></div>
 									</div>
 								</Route>
 							</Suspense>

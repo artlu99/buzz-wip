@@ -114,8 +114,14 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
             // Get current user config (in case it changed)
             const autoResponder = useZustand.getState().autoResponder;
             
+            console.log("[AUTORESPONDER] Marco message received, checking if should respond:", {
+                marcoUuid: payload.uuid,
+                autoResponderEnabled: autoResponder,
+                channelId: payload.channelId,
+            });
+            
             // Check if we should autorespond
-            if (!shouldAutorespond(payload, state, autoResponder)) {
+            if (!shouldAutorespond(payload, state, autoResponder)) {   
                 return;
             }
 
@@ -302,13 +308,31 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 return;
             }
 
+            console.log("[AUTORESPONDER] Scheduling autoresponse:", {
+                marcoUuid,
+                messagesCount: messagesToSend.length,
+                delay,
+            });
+
             const timeoutId = setTimeout(() => {
                 // Double-check we should still respond (might have been cancelled)
+                // cancelAutoresponse removes the timeout from cache and returns it
+                // If it returns null, the timeout was cancelled (or never scheduled)
+                // Note: If a newer timeout was scheduled for the same UUID, we'll get that one,
+                // which is fine - we're still responding to a Marco message
                 const scheduledTimeout = state.cancelAutoresponse(marcoUuid);
                 if (!scheduledTimeout) {
                     // Was cancelled - idempotency checks will prevent re-sending
+                    console.log("[AUTORESPONDER] Autoresponse was cancelled, skipping send");
                     return;
                 }
+                
+                console.log("[AUTORESPONDER] Executing scheduled autoresponse:", {
+                    marcoUuid,
+                    messagesCount: messagesToSend.length,
+                    timeoutId,
+                    scheduledTimeout,
+                });
 
                 // Record autoresponse
                 if (marcoUuid) {
