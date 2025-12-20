@@ -13,12 +13,16 @@ import {
 import {
 	type DeleteMessage,
 	isDeleteMessage,
+	isEncryptedMessage,
 	type KnownMessage,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
+import { decryptMessagePayload } from "../../lib/symmetric-encryption";
+import { useZustand } from "../../hooks/use-zustand";
 import { validateDeleteTimestamp } from "../../lib/timestamp-validation";
 import { useSocket } from "../../providers/SocketProvider";
+import { useGarbledStore } from "../../hooks/use-garbled";
 
 // Buffer DELETE messages that arrive before their messages
 type PendingDelete = {
@@ -45,10 +49,52 @@ export const DeleteMessageHandler = () => {
 	);
 
 	useEffect(() => {
+		if (!socketClient) return;
 		const handler = (e: WsMessage<KnownMessage>) => {
-			if (!isDeleteMessage(e.message)) return;
+			let message = e.message;
 
-			const payload: DeleteMessage = e.message;
+			console.log("[DELETE HANDLER] Received message", {
+				isEncrypted: isEncryptedMessage(message),
+				type: message.type,
+				hasNetworkMessageId: !!message.networkMessageId,
+			});
+
+			// Handle encryption at the top level
+			if (isEncryptedMessage(message)) {
+				const state = useZustand.getState();
+				const encryptionKey = state.channel.encryptionKey;
+				if (!encryptionKey) {
+					// message is encrypted but no decryption key is set
+					// We can't process encrypted DELETE without the key
+					console.log(
+						"[DELETE HANDLER] Encrypted DELETE message received, but no key available. Skipping.",
+					);
+					return;
+				}
+				const decrypted = decryptMessagePayload<DeleteMessage>(
+					message,
+					encryptionKey,
+				);
+				if (!decrypted) {
+					// if we can't decrypt it, remove it from the garbled store
+					useGarbledStore
+						.getState()
+						.removeMessageByNetworkMessageId(message.networkMessageId ?? "");
+					return;
+				}
+				message = decrypted;
+				console.log("[DELETE HANDLER] Decrypted message", {
+					networkMessageId: message.networkMessageId,
+					type: message.type,
+				});
+			}
+
+			if (!isDeleteMessage(message)) {
+				console.log("[DELETE HANDLER] Not a DELETE message, skipping");
+				return;
+			}
+
+			const payload: DeleteMessage = message;
 
 			// Always read latest values from Evolu via ref
 			const currentMessages = allMessagesRef.current ?? [];
@@ -172,27 +218,72 @@ function processDeleteMessage(
 		return;
 	}
 
-	// Validate DELETE timestamp against message updatedAt
+	// Filter messages that should be deleted based on timestamp
+	// A DELETE message should only delete messages that existed before the DELETE timestamp
+	// This prevents catchup DELETE messages from deleting newly inserted TEXT messages
+	let messagesToDelete = messages;
 	if (payload.networkTimestamp) {
-		for (const msg of messages) {
+		const deleteTimestamp = parseInt(payload.networkTimestamp, 10);
+		if (!Number.isNaN(deleteTimestamp)) {
+			messagesToDelete = messages.filter((msg) => {
+				// Only delete if the message was created/updated before the DELETE timestamp
+				// This ensures we don't delete messages that were inserted after the DELETE was sent
+				const messageTimestamp = new Date(
+					msg.updatedAt ?? msg.createdAt,
+				).getTime();
+				const isValid = messageTimestamp <= deleteTimestamp;
+				if (!isValid) {
+					console.warn(
+						"[DELETE HANDLER] Skipping message - created after DELETE:",
+						{
+							networkMessageId: payload.networkMessageId,
+							messageId: msg.id,
+							messageTimestamp,
+							deleteTimestamp,
+							timeDiff: messageTimestamp - deleteTimestamp,
+						},
+					);
+				}
+				return isValid;
+			});
+		}
+	}
+
+	// Validate DELETE timestamp against message updatedAt (for logging)
+	if (payload.networkTimestamp) {
+		for (const msg of messagesToDelete) {
 			const validation = validateDeleteTimestamp(
 				payload.networkTimestamp,
-				msg.updatedAt,
+				msg.updatedAt ?? msg.createdAt,
 			);
 			if (!validation.valid) {
 				console.warn("[DELETE HANDLER] Timestamp validation triggered:", {
 					networkMessageId: payload.networkMessageId,
 					reason: validation.reason,
 					deleteTimestamp: payload.networkTimestamp,
-					messageUpdatedAt: msg.updatedAt,
+					messageUpdatedAt: msg.updatedAt ?? msg.createdAt,
 				});
 				// Continue anyway - timestamp mismatch is logged but not fatal
 			}
 		}
 	}
 
-	// Soft delete the message
-	messages.forEach((msg) => {
+	if (messagesToDelete.length === 0) {
+		console.log("[DELETE HANDLER] No messages to delete (all filtered out):", {
+			networkMessageId: payload.networkMessageId,
+			totalMatching: messages.length,
+		});
+		return;
+	}
+
+	console.log("[DELETE HANDLER] Deleting messages:", {
+		networkMessageId: payload.networkMessageId,
+		totalMatching: messages.length,
+		toDelete: messagesToDelete.length,
+		filteredOut: messages.length - messagesToDelete.length,
+	});
+
+	messagesToDelete.forEach((msg) => {
 		update("message", {
 			id: msg.id,
 			isDeleted: sqliteTrue,

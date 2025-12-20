@@ -32,6 +32,17 @@ export const isValidHttpUrl = (urlString: string): boolean => {
 	}
 };
 
+export const isValidWebSocketUrl = (urlString: string): boolean => {
+	if (urlString.length === 0) return false;
+	try {
+		const url = new URL(urlString);
+		// Only allow ws and wss protocols
+		return url.protocol === "ws:" || url.protocol === "wss:";
+	} catch {
+		return false;
+	}
+};
+
 /**
  * Serialize binary data using base64 encoding (modern standard for binary in JSON).
  * Helper to convert Uint8Array to base64 efficiently (handles large arrays).

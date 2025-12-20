@@ -5,6 +5,9 @@ export const ClickableDateSpan = ({ timestamp }: { timestamp: number }) => {
 	const [isRaw, setIsRaw] = useState(false);
 
 	const date = new Date(timestamp);
+	if (Number.isNaN(date.getTime())) {
+		return <span></span>;
+	}
 
 	return (
 		<button

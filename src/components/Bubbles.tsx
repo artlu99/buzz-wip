@@ -19,10 +19,11 @@ import {
 } from "../lib/local-first";
 import {
 	type DeleteMessage,
-	type TextMessage,
+	type KnownMessage,
 	UserMessageDataSchema,
 	WsMessageType,
 } from "../lib/sockets";
+import { prepareEncryptedMessage } from "../lib/symmetric-encryption";
 import { getDisplayTimestamp } from "../lib/timestamp-validation";
 import { useSocket } from "../providers/SocketProvider";
 import { MessageDetailsModal } from "./MessageDetailsModal";
@@ -102,7 +103,7 @@ export const Bubbles = () => {
 	type MessageItem = (typeof messages)[0] | UndecryptableMessageItem;
 	type UndecryptableMessageItem = {
 		type: "undecryptable";
-		message: TextMessage;
+		message: KnownMessage;
 		timestamp: number;
 		receivedAt: number;
 	};
@@ -138,7 +139,13 @@ export const Bubbles = () => {
 			signature: null,
 		};
 		console.log("deleteMessage", deleteMessage);
-		socketClient.safeSend(deleteMessage);
+		if (!socketClient) return;
+		const messageToSend = prepareEncryptedMessage(
+			deleteMessage,
+			channel.encrypted,
+			channel.encryptionKey,
+		);
+		socketClient.safeSend(messageToSend);
 	};
 
 	// Sort by display timestamp (uses networkTimestamp if valid, falls back to createdAt)
@@ -156,22 +163,16 @@ export const Bubbles = () => {
 	);
 
 	// Combine regular messages with undecryptable messages
-	const garbled = verbose
+	const garbled: UndecryptableMessageItem[] = verbose
 		? getMessages(channelId).map((m) => ({
-				...m,
-				timestamp: Number(m.message.networkTimestamp),
+				type: "undecryptable" as const,
+				message: m.message,
+				timestamp: m.receivedAt,
+				receivedAt: m.receivedAt,
 			}))
 		: [];
 
-	const allMessages: MessageItem[] = [
-		...messages,
-		...garbled.map((m) => ({
-			type: "undecryptable" as const,
-			message: m.message,
-			timestamp: m.timestamp,
-			receivedAt: m.receivedAt,
-		})),
-	];
+	const allMessages: MessageItem[] = [...messages, ...garbled];
 
 	// Sort all messages by timestamp
 	const sortedMessages = alphabetical(
@@ -353,7 +354,7 @@ export const Bubbles = () => {
 			<MessageDetailsModal
 				isOpen={!!selectedMessageId}
 				onClose={() => setSelectedMessageId(undefined)}
-				messageId={selectedMessageId}
+				networkMessageId={selectedMessageId}
 			/>
 		</>
 	);

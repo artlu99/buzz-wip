@@ -15,6 +15,7 @@ import {
 } from "../lib/reactions";
 import type { ReactionMessage } from "../lib/sockets";
 import { WsMessageType } from "../lib/sockets";
+import { prepareEncryptedMessage } from "../lib/symmetric-encryption";
 import { useSocket } from "../providers/SocketProvider";
 
 interface MessageReactionsProps {
@@ -73,7 +74,7 @@ export const MessageReactions = ({
 	const reactions = uniqueReactions;
 
 	const handleReaction = async (
-		messageId: MessageId,
+		messageId: MessageId, // Local database ID for upserting reaction
 		reaction: ReactionType,
 	) => {
 		const reactionString = NonEmptyString100.orThrow(reaction);
@@ -118,6 +119,7 @@ export const MessageReactions = ({
 				});
 			}
 		}
+		if (!socketClient) return;
 		// Send websocket message using networkMessageId for matching across distributed stores
 		const reactionMessage: ReactionMessage = {
 			uuid: uuid,
@@ -128,7 +130,12 @@ export const MessageReactions = ({
 			channelId: channelId,
 			isDeleted: isDeleted,
 		};
-		socketClient.safeSend(reactionMessage);
+		const messageToSend = prepareEncryptedMessage(
+			reactionMessage,
+			channel.encrypted,
+			channel.encryptionKey,
+		);
+		socketClient.safeSend(messageToSend);
 	};
 
 	const totalReactionCount = reactions.length;

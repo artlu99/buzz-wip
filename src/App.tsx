@@ -1,11 +1,9 @@
 import { EvoluProvider } from "@evolu/react";
 import { Suspense, useEffect, useRef } from "react";
-import { lru } from "tiny-lru";
 import { Link, Route, useLocation } from "wouter";
 import { AuthActions } from "./components/AuthActions";
 import { AvailableReactions } from "./components/AvailableReactions";
 import { Bubbles } from "./components/Bubbles";
-import { ClearMessagesElement } from "./components/ClearMessagesElement";
 import { HelpPage } from "./components/HelpPage";
 import { DeleteMessageHandler } from "./components/listeners/DeleteMessageHandler";
 import { HelloUser } from "./components/listeners/HelloUser";
@@ -21,6 +19,7 @@ import { ProfileEditor } from "./components/ProfileEditor";
 import { UserModals } from "./components/UserModals";
 import { AudioToggle } from "./components/ui/AudioToggle";
 import { LockdownToggle } from "./components/ui/LockdownToggle";
+import { SaltSelector } from "./components/ui/SaltSelector";
 import { SocketServerSelector } from "./components/ui/SocketServerSelector";
 import { VerboseToggle } from "./components/ui/VerboseToggle";
 import { useZustand } from "./hooks/use-zustand";
@@ -50,41 +49,24 @@ function App() {
 		getAppOwner();
 	}, [setRoom, setUuid]);
 
-	// LRU cache for Marco message deduplication
-	// Max 50 entries with 2s TTL - automatically evicts expired entries
-	// Key: `${channelId}:${uuid}`, Value: timestamp (not used, just for existence check)
-	const marcoMessageCacheRef = useRef(lru<number>(50, 2000, true)); // max=50, ttl=2s, resetTtl=true
 	// Track if Marco message is currently being sent (prevents race conditions during rapid re-renders)
+	// The sendingMarcoRef flag is sufficient - no need for TTL cache since useEffect dependencies
+	// already prevent rapid re-sends, and socket-level deduplication handles network duplicates
 	const sendingMarcoRef = useRef(false);
 
 	useEffect(() => {
-		if (!uuid) return;
-
-		// Prevent duplicate Marco messages using LRU cache with TTL
-		const cacheKey = `${channelId}:${uuid}`;
-
-		// Check cache first
-		if (marcoMessageCacheRef.current.get(cacheKey) !== undefined) {
-			console.log("[APP] Skipping duplicate Marco message (within TTL)");
-			return;
-		}
+		if (!uuid || !socketClient) return;
 
 		// Check if we're already sending (prevents race condition during rapid re-renders)
 		if (sendingMarcoRef.current) {
-			console.log("[APP] Skipping duplicate Marco message (already sending)");
 			return;
 		}
 
 		// Mark as sending immediately to prevent duplicates
 		sendingMarcoRef.current = true;
-		marcoMessageCacheRef.current.set(cacheKey, Date.now());
 
-		socketClient.safeSend({
-			type: WsMessageType.DOORBELL,
-			uuid: uuid,
-			message: DoorbellType.OPEN,
-			channelId: channelId,
-		});
+		// Note: The socketClient now handles joining the salted channel URL.
+		// The Marco message still contains the plaintext channelId for app-level matching.
 
 		// send a Marco message to everyone to let them know we're here
 		socketClient.safeSend({
@@ -94,8 +76,8 @@ function App() {
 			channelId: channelId,
 		});
 
-		// Reset sending flag after a short delay (allows cache to be effective)
-		// The cache TTL will handle longer-term deduplication
+		// Reset sending flag after a short delay to prevent rapid re-sends
+		// The useEffect dependencies already prevent re-sends when channelId/socketClient/uuid change
 		setTimeout(() => {
 			sendingMarcoRef.current = false;
 		}, 100);
@@ -103,7 +85,7 @@ function App() {
 
 	// Send "bye" message when browser/tab closes
 	useEffect(() => {
-		if (!uuid) return;
+		if (!uuid || !socketClient) return;
 		const handleBeforeUnload = () => {
 			socketClient.safeSend({
 				type: WsMessageType.DOORBELL,
@@ -136,7 +118,7 @@ function App() {
 
 	return (
 		<div className="min-h-screen">
-			<Suspense fallback={<div>Initializing...</div>}>
+			<Suspense fallback={<div>Initializing or reconnecting...</div>}>
 				<AudioProvider>
 					<NavBar />
 					<div className="mx-auto max-w-md px-8 py-2">
@@ -167,7 +149,6 @@ function App() {
 							<Suspense fallback={<div>Connecting...</div>}>
 								<Route path="/">
 									<UserModals />
-									<ClearMessagesElement />
 									<AvailableReactions />
 									<HelloUser />
 									<Bubbles />
@@ -187,6 +168,7 @@ function App() {
 										<LockdownToggle />
 										<VerboseToggle />
 										<AudioToggle />
+										<SaltSelector />
 										<SocketServerSelector />
 									</div>
 								</Route>

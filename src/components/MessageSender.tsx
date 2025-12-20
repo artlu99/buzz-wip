@@ -7,7 +7,7 @@ import {
 	TypingIndicatorType,
 	WsMessageType,
 } from "../lib/sockets";
-import { prepareMessageContent } from "../lib/symmetric-encryption";
+import { prepareEncryptedMessage } from "../lib/symmetric-encryption";
 import { useSocket } from "../providers/SocketProvider";
 import { TextEntry } from "./ui/TextEntry";
 
@@ -18,7 +18,7 @@ export const MessageSender = () => {
 	const socketClient = useSocket();
 
 	const handleTyping = () => {
-		if (lockdown) return;
+		if (lockdown || !socketClient) return;
 		const message: TypingIndicatorMessage = {
 			uuid: uuid,
 			type: WsMessageType.STATUS,
@@ -29,7 +29,7 @@ export const MessageSender = () => {
 	};
 
 	const handleStopTyping = () => {
-		if (lockdown) return;
+		if (lockdown || !socketClient) return;
 		const message: TypingIndicatorMessage = {
 			uuid: uuid,
 			type: WsMessageType.STATUS,
@@ -60,6 +60,8 @@ export const MessageSender = () => {
 		const networkMessageId = result.value.id;
 		update("message", { id: networkMessageId, networkMessageId });
 
+		if (!socketClient) return;
+
 		// Send STOP_TYPING indicator
 		if (!lockdown) {
 			const stopTypingMessage: TypingIndicatorMessage = {
@@ -76,30 +78,22 @@ export const MessageSender = () => {
 		// this encryption protocol is not secure (yet),
 		// it uses same-band insecure secret transmission
 		// and user input without concern for sufficient entropy
-		const { content: messageUuid, encrypted: isUuidEncrypted } =
-			prepareMessageContent(uuid, encrypted, encryptionKey);
-		const { content: messageContent, encrypted: isMessageEncrypted } =
-			prepareMessageContent(content, encrypted, encryptionKey);
-		const { content: userContent, encrypted: isUserEncrypted } =
-			prepareMessageContent(
-				JSON.stringify(user),
-				isMessageEncrypted,
-				encryptionKey,
-			);
-
 		const textMessage: TextMessage = {
-			uuid: isUuidEncrypted ? messageUuid : uuid,
+			uuid,
 			type: WsMessageType.TEXT,
-			content: messageContent,
-			user:
-				isUserEncrypted && typeof userContent !== "string" ? userContent : user,
-			channelId: channelId,
-			encrypted: isUuidEncrypted || isMessageEncrypted || isUserEncrypted,
-			networkMessageId: networkMessageId,
+			content,
+			user,
+			channelId,
+			networkMessageId,
 			networkTimestamp: Date.now().toString(),
 			autoResponder: false,
 		};
-		socketClient.safeSend(textMessage);
+		const messageToSend = prepareEncryptedMessage(
+			textMessage,
+			encrypted,
+			encryptionKey,
+		);
+		socketClient.safeSend(messageToSend);
 	};
 
 	return (

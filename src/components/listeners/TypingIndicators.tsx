@@ -23,6 +23,7 @@ export const TypingIndicators = () => {
 	const socketClient = useSocket();
 
 	useEffect(() => {
+		if (!socketClient) return;
 		socketClient.on(WsMessageType.STATUS, (e: WsMessage<KnownMessage>) => {
 			if (!isTypingIndicatorMessage(e.message)) {
 				return;

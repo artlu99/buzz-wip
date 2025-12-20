@@ -35,6 +35,7 @@ export const lastNTextMessagesQuery = (
 				content: kysely.NotNull;
 				channelId: kysely.NotNull;
 				networkMessageId: kysely.NotNull;
+				createdBy: kysely.NotNull;
 			}>()
 			.orderBy("updatedAt", "desc")
 			.limit(limit),

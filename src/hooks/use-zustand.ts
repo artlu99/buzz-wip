@@ -10,12 +10,14 @@ interface ChannelState {
 	channelId: NonEmptyString100;
 	encrypted: boolean;
 	encryptionKey: string | undefined;
+	channelSalt: string | undefined;
 }
 const initialChannel: ChannelState = {
-	channelId: NonEmptyString100.orThrow("buzz-54321"),
+	channelId: NonEmptyString100.orThrow("buzz-54321-regression-test"),
 	encrypted: false,
-	encryptionKey: undefined ,
-}
+	encryptionKey: undefined,
+	channelSalt: undefined,
+};
 const initalUser: UserMessageData = {
 	displayName: "Anonymous Bee 🐝",
 	pfpUrl: "",
@@ -48,6 +50,8 @@ export const useZustand = create(
 					set({ channel: { ...get().channel, encrypted } }),
 				setEncryptionKey: (encryptionKey: string | undefined) =>
 					set({ channel: { ...get().channel, encryptionKey } }),
+				setChannelSalt: (channelSalt: string | undefined) =>
+					set({ channel: { ...get().channel, channelSalt } }),
 				setUser: (
 					displayName: string,
 					pfpUrl: string = "",

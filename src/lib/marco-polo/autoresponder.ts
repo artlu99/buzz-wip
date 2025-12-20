@@ -8,7 +8,6 @@ import type {
 	UserMessageData,
 } from "../sockets";
 import { WsMessageType } from "../sockets";
-import { prepareMessageContent } from "../symmetric-encryption";
 import type { LastNReactionsRow, LastNTextMessagesRow } from "./queries";
 
 /**
@@ -96,13 +95,12 @@ export function filterMessagesForIdempotency(
 
 /**
  * Reconstruct a TextMessage from a database row.
- * If the channel is currently encrypted, re-encrypts plaintext messages.
+ * Messages are returned in their plaintext form as stored in the database.
+ * The caller is responsible for encrypting the reconstructed message if needed.
  */
 export function reconstructTextMessage(
 	dbMessage: LastNTextMessagesRow,
 	channelId: NonEmptyString100,
-	encryptionKey: string | undefined,
-	encrypted: boolean,
 ): TextMessage | null {
 	if (!dbMessage.networkMessageId || !dbMessage.content) {
 		return null;
@@ -116,11 +114,6 @@ export function reconstructTextMessage(
 		return null;
 	}
 
-	// Determine content and encryption status
-	// Messages are stored as plaintext in the database (even if originally encrypted)
-	let content: string | { nonce: string; ciphertext: string };
-	let messageEncrypted: boolean;
-
 	// Get plaintext content from database
 	let plaintextContent: string;
 	if (typeof dbMessage.content === "string") {
@@ -131,20 +124,10 @@ export function reconstructTextMessage(
 			const parsed = JSON.parse(dbMessage.content);
 			if (parsed.nonce && parsed.ciphertext) {
 				// This shouldn't happen (messages are stored as plaintext),
-				// but handle it gracefully
-				content = parsed;
-				messageEncrypted = true;
-				return {
-					uuid: dbMessage.createdBy || "",
-					type: WsMessageType.TEXT,
-					content,
-					user,
-					channelId,
-					encrypted: messageEncrypted,
-					networkMessageId: dbMessage.networkMessageId,
-					networkTimestamp: dbMessage.networkTimestamp ?? "",
-					autoResponder: true,
-				};
+				// but handle it gracefully if it was somehow stored as encrypted JSON
+				// We don't have the key here to decrypt it anyway, so we'll just return null
+				// or try to treat it as string
+				return null;
 			} else {
 				plaintextContent = dbMessage.content;
 			}
@@ -153,19 +136,12 @@ export function reconstructTextMessage(
 		}
 	}
 
-	// Use shared encryption logic (same as MessageSender.tsx)
-	const { content: messageContent, encrypted: messageEncryptedResult } =
-		prepareMessageContent(plaintextContent, encrypted, encryptionKey);
-	content = messageContent;
-	messageEncrypted = messageEncryptedResult;
-
 	return {
-		uuid: dbMessage.createdBy || "",
+		uuid: dbMessage.createdBy,
 		type: WsMessageType.TEXT,
-		content,
+		content: plaintextContent,
 		user,
 		channelId,
-		encrypted: messageEncrypted,
 		networkMessageId: dbMessage.networkMessageId,
 		networkTimestamp: dbMessage.networkTimestamp || String(Date.now()),
 		autoResponder: true,

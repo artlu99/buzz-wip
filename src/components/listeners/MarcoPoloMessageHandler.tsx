@@ -12,18 +12,16 @@ import { useAutoResponder } from "../../hooks/useAutoResponder";
 import { useEvolu } from "../../lib/local-first";
 import {
 	isMarcoPoloMessage,
+	isEncryptedMessage,
 	type KnownMessage,
 	type MarcoPoloMessage,
 	type UserMessageData,
-	UserMessageDataSchema,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
 import {
-	decryptMessageContent,
-	isSerializedEncryptedData,
-	prepareMessageContent,
-	SerializedEncryptedDataSchema,
+	decryptMessagePayload,
+	prepareEncryptedMessage,
 } from "../../lib/symmetric-encryption";
 import { useSocket } from "../../providers/SocketProvider";
 
@@ -71,7 +69,7 @@ export const MarcoPoloMessageHandler = () => {
 
 	// Proactively broadcast encryption key changes via Polo messages
 	useEffect(() => {
-		if (!uuid) return;
+		if (!uuid || !socketClient) return;
 		if (isInitialMountRef.current) {
 			// Don't broadcast on initial mount
 			isInitialMountRef.current = false;
@@ -112,17 +110,6 @@ export const MarcoPoloMessageHandler = () => {
 			lastEncryptionKeyRef.current = currentEncryptionKey;
 			lastLockdownRef.current = currentLockdown;
 
-			// Broadcast Polo message with updated channel data
-			const iam: UserMessageData = {
-				...currentState.user,
-			};
-			const { content: encryptedIam, encrypted: isEncryptedIam } =
-				prepareMessageContent(
-					JSON.stringify(iam),
-					currentState.channel.encrypted,
-					currentState.channel.encryptionKey,
-				);
-
 			const thisChannel = useZustand
 				.getState()
 				.createChannelData(currentChannelId);
@@ -131,15 +118,16 @@ export const MarcoPoloMessageHandler = () => {
 				channelId: currentChannelId,
 				uuid: uuid,
 				message: {
-					user: lockdown
-						? undefined
-						: isEncryptedIam && typeof encryptedIam !== "string"
-							? encryptedIam
-							: iam,
+					user: lockdown ? undefined : currentState.user,
 					channel: thisChannel,
 				},
 			};
-			socketClient.safeSend(message);
+			const messageToSend = prepareEncryptedMessage(
+				message,
+				currentState.channel.encrypted,
+				currentState.channel.encryptionKey,
+			);
+			socketClient.safeSend(messageToSend);
 		} else if (keyChanged || lockdownChanged) {
 			// Update refs even if we don't broadcast (to track state)
 			lastEncryptionKeyRef.current = currentEncryptionKey;
@@ -148,16 +136,30 @@ export const MarcoPoloMessageHandler = () => {
 	}, [socketClient, uuid, channel.encryptionKey, channel.channelId, lockdown]);
 
 	useEffect(() => {
+		if (!socketClient) return;
 		// Short-circuit if uuid is missing
 		if (!uuid) return;
 
-		const currentEncryptionKey = channel.encryptionKey;
-
 		const handler = (e: WsMessage<KnownMessage>) => {
-			if (!isMarcoPoloMessage(e.message)) {
+			let message = e.message;
+
+			// Handle encryption at the top level
+			if (isEncryptedMessage(message)) {
+				const decrypted = decryptMessagePayload<MarcoPoloMessage>(
+					message,
+					channel.encryptionKey ?? "",
+				);
+				if (!decrypted) {
+					// If we can't decrypt it, it might not be for us or we don't have the key yet
+					return;
+				}
+				message = decrypted;
+			}
+
+			if (!isMarcoPoloMessage(message)) {
 				return;
 			}
-			const payload: MarcoPoloMessage = e.message;
+			const payload: MarcoPoloMessage = message;
 			invariant(payload.channelId, "Marco Polo message has no channel name");
 
 			const state = useZustand.getState();
@@ -189,13 +191,18 @@ export const MarcoPoloMessageHandler = () => {
 				const thisChannel = useZustand
 					.getState()
 					.createChannelData(currentChannelId);
-				const message: MarcoPoloMessage = {
+				const responseMessage: MarcoPoloMessage = {
 					type: WsMessageType.MARCO_POLO,
 					channelId: currentChannelId,
 					uuid: state.uuid,
 					message: { user: iam, channel: thisChannel },
 				};
-				socketClient.safeSend(message);
+				const messageToSend = prepareEncryptedMessage(
+					responseMessage,
+					state.channel.encrypted,
+					state.channel.encryptionKey,
+				);
+				socketClient.safeSend(messageToSend);
 				// Store in cache (TTL handles expiration automatically)
 				if (responseKey) {
 					marcoResponseCacheRef.current.set(responseKey, Date.now());
@@ -245,36 +252,8 @@ export const MarcoPoloMessageHandler = () => {
 				status: "",
 				publicNtfyShId: "",
 			};
-			if (
-				payload.message.user &&
-				!isSerializedEncryptedData(payload.message.user)
-			) {
+			if (payload.message.user) {
 				user = payload.message.user;
-			}
-			const validatedEncryptedUser = SerializedEncryptedDataSchema.safeParse(
-				payload.message.user,
-			);
-			if (validatedEncryptedUser.success) {
-				if (currentEncryptionKey) {
-					const decryptedUser = decryptMessageContent(
-						validatedEncryptedUser.data,
-						currentEncryptionKey,
-					);
-					if (decryptedUser) {
-						const validator = UserMessageDataSchema.safeParse(decryptedUser);
-						if (validator.success) {
-							user = { ...user, ...validator.data }; // allow partial user without status, publicNtfyShId
-						} else {
-							console.warn("[MARCO HANDLER] Invalid user data", {
-								decryptedUser,
-								validator: validator.error,
-							});
-							return // no update
-						}
-					}
-				} else {
-					return // no update
-				}
 			}
 
 			// displayName === uuid is placeholder for not getting user's display name from message

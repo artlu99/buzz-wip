@@ -5,6 +5,7 @@ import {
 } from "@evolu/common";
 import { z } from "zod";
 import { Base64ToUint8Array, uint8ArrayToBase64 } from "./helpers";
+import type { EncryptedMessage } from "./sockets";
 
 /**
  * Serialized encrypted data format for transmission over websocket.
@@ -65,46 +66,91 @@ export function decryptMessageContent(
 }
 
 /**
- * Encrypts plaintext content if encryption is enabled, otherwise returns plaintext.
- * This is the shared encryption logic used by MessageSender and autoresponder.
+ * Encrypts a message's data while keeping type and channelId in plaintext.
  *
- * @param plaintext - The plaintext string to potentially encrypt
- * @param encrypted - Whether the channel is currently encrypted
- * @param encryptionKey - The base64-encoded encryption key (if encryption is enabled)
- * @returns Object with content (string or SerializedEncryptedData) and encrypted flag
+ * @param message - The message object to potentially encrypt
+ * @param encrypted - Whether encryption is enabled
+ * @param encryptionKey - The base64-encoded encryption key
+ * @returns Either the original message or an EncryptedMessage
  */
-export function prepareMessageContent(
-	plaintext: string,
+export function prepareEncryptedMessage<T extends { type: unknown; channelId: string; networkMessageId?: string }>(
+	message: T,
 	encrypted: boolean,
 	encryptionKey: string | undefined,
-): {
-	content: string | SerializedEncryptedData;
-	encrypted: boolean;
-} {
-	// If encryption is enabled and we have a key, encrypt the content
+): T | EncryptedMessage {
 	if (encrypted && encryptionKey) {
+		const { type, channelId, networkMessageId, ...rest } = message;
 		const symmetricEncryptionKey = Base64ToUint8Array(
 			encryptionKey,
 		) as EncryptionKey;
 
 		const crypt = createCryptoInstance();
-		const plaintextBytes = new TextEncoder().encode(plaintext);
+		const plaintextBytes = new TextEncoder().encode(JSON.stringify(rest));
 		const encryptedContent = crypt.encrypt(plaintextBytes, symmetricEncryptionKey);
 
-		const serializedEncryptedContent: SerializedEncryptedData = {
-			nonce: uint8ArrayToBase64(encryptedContent.nonce),
-			ciphertext: uint8ArrayToBase64(encryptedContent.ciphertext),
+		const encryptedMsg: Omit<EncryptedMessage, "uuid"> & { uuid?: never } = {
+			type: type as EncryptedMessage["type"],
+			channelId,
+			networkMessageId,
+			payload: {
+				nonce: uint8ArrayToBase64(encryptedContent.nonce),
+				ciphertext: uint8ArrayToBase64(encryptedContent.ciphertext),
+			},
 		};
-
-		return {
-			content: serializedEncryptedContent,
-			encrypted: true,
-		};
+		return encryptedMsg as EncryptedMessage;
 	}
 
-	// Send as plaintext
-	return {
-		content: plaintext,
-		encrypted: false,
-	};
+	return message;
+}
+
+/**
+ * Decrypts an encrypted message payload and merges it with the base fields.
+ *
+ * @param message - The EncryptedMessage to decrypt
+ * @param encryptionKey - The base64-encoded encryption key
+ * @returns The decrypted message, or undefined if decryption fails
+ */
+export function decryptMessagePayload<T>(
+	message: { type: unknown; channelId: string; networkMessageId?: string; payload: SerializedEncryptedData },
+	encryptionKey: string,
+): T | undefined {
+	const symmetricEncryptionKey = Base64ToUint8Array(
+		encryptionKey,
+	) as EncryptionKey;
+
+	const { ciphertext, nonce } = message.payload;
+
+	const crypt = createCryptoInstance();
+	const decryptedContent = crypt.decrypt(
+		Base64ToUint8Array(ciphertext),
+		symmetricEncryptionKey,
+		Base64ToUint8Array(nonce),
+	);
+
+	if (decryptedContent.ok) {
+		try {
+			const decryptedData = JSON.parse(new TextDecoder().decode(decryptedContent.value));
+			// Reconstruct the message with plaintext fields first, then decrypted fields
+			// This ensures networkMessageId (used for routing) is always available
+			const reconstructed = {
+				type: message.type,
+				channelId: message.channelId,
+				networkMessageId: message.networkMessageId,
+				...decryptedData,
+			} as object;
+			
+			// Verify required fields are present
+			if (!("type" in reconstructed) || !("channelId" in reconstructed)) {
+				console.error("Decrypted message missing required fields", reconstructed);
+				return undefined;
+			}
+			
+			return reconstructed as T;
+		} catch (e) {
+			console.error("Failed to parse decrypted message JSON", e);
+			return undefined;
+		}
+	}
+
+	return undefined;
 }

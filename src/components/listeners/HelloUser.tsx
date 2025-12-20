@@ -19,6 +19,7 @@ export const HelloUser = () => {
 	const { setRoom } = useZustand();
 
 	useEffect(() => {
+		if (!socketClient) return;
 		socketClient.on(WsMessageType.DOORBELL, (e: WsMessage<KnownMessage>) => {
 			if (!isDoorbellMessage(e.message)) {
 				return;

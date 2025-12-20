@@ -108,7 +108,7 @@ export const HelpPage = () => {
 						<p>
 							The encryption is fragile by design, as{" "}
 							<em>
-								shared messages belong to everyone who has seen them, not just
+								shared messages belong to everyone who has seen them, not jus
 								the sender
 							</em>
 							. Keys are meant to be disposable, and convenient to rotate (1

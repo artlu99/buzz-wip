@@ -18,6 +18,7 @@ import {
 import type { KnownMessage, TypedWsClient } from "../lib/sockets";
 import {
     type DeleteMessage,
+    isEncryptedMessage,
     isMarcoPoloMessage,
     isReactionMessage,
     isTextMessage,
@@ -27,10 +28,14 @@ import {
     type WsMessage,
     WsMessageType,
 } from "../lib/sockets";
+import {
+    decryptMessagePayload,
+    prepareEncryptedMessage,
+} from "../lib/symmetric-encryption";
 import { useZustand } from "./use-zustand";
 
 interface UseAutoResponderOptions {
-    socketClient: TypedWsClient;
+    socketClient: TypedWsClient | null;
     channelId: string;
     uuid: string | undefined;
     encryptionKey: string | undefined;
@@ -77,14 +82,26 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 
     // Handler for Marco messages
     useEffect(() => {
-        if (!uuid) return;
+        if (!uuid || !socketClient) return;
 
         const handler = (e: WsMessage<KnownMessage>) => {
-            if (!isMarcoPoloMessage(e.message)) {
+            let message = e.message;
+
+            // Handle encryption at the top level
+            if (isEncryptedMessage(message)) {
+                const decrypted = decryptMessagePayload<MarcoPoloMessage>(
+                    message,
+                    encryptionKey ?? "",
+                );
+                if (!decrypted) return;
+                message = decrypted;
+            }
+
+            if (!isMarcoPoloMessage(message)) {
                 return;
             }
 
-            const payload: MarcoPoloMessage = e.message;
+            const payload: MarcoPoloMessage = message;
             if (payload.channelId !== channelId) {
                 return;
             }
@@ -132,17 +149,50 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 
 
             // Collect messages to send
+            // Note: For reactions, we use reactionKey for idempotency tracking, not networkMessageId
             type MessageToSend =
-                | { type: "text"; message: TextMessage; networkMessageId: string }
-                | { type: "delete"; message: DeleteMessage; networkMessageId: string }
-                | { type: "reaction"; message: ReactionMessage; networkMessageId: string };
+                | { type: "text"; message: TextMessage; networkMessageId: string; idempotencyKey: string }
+                | { type: "delete"; message: DeleteMessage; networkMessageId: string; idempotencyKey: string }
+                | { type: "reaction"; message: ReactionMessage; networkMessageId: string; idempotencyKey: string };
             const messagesToSend: MessageToSend[] = [];
 
             // Process TEXT messages - check idempotency IMMEDIATELY
+            // Since networkMessageId should not be reused, we don't need deduplication
+            // However, the query includes deleted messages, so we need to handle them separately
+            // (send DELETE messages for deleted ones, TEXT messages for non-deleted ones)
+            console.log("[AUTORESPONDER] Query results:", {
+                totalMessages: currentTextMessages.length,
+                deletedCount: currentTextMessages.filter((m) => m.isDeleted === sqliteTrue).length,
+                nonDeletedCount: currentTextMessages.filter((m) => m.isDeleted !== sqliteTrue).length,
+                sample: currentTextMessages.slice(0, 5).map((m) => ({
+                    id: m.id,
+                    networkMessageId: m.networkMessageId,
+                    isDeleted: m.isDeleted,
+                    updatedAt: m.updatedAt,
+                })),
+            });
+            
+            // Track which networkMessageIds we've already processed to avoid duplicates
+            // (shouldn't happen if networkMessageId is unique, but defensive programming)
+            const processedNetworkIds = new Set<string>();
+            
+            // Process messages - separate deleted and non-deleted
             for (const dbMessage of currentTextMessages) {
                 if (!dbMessage.networkMessageId) {
                     continue;
                 }
+
+                // Skip if we've already processed this networkMessageId
+                // (shouldn't happen, but defensive programming)
+                if (processedNetworkIds.has(dbMessage.networkMessageId)) {
+                    console.warn("[AUTORESPONDER] Duplicate networkMessageId detected (should not happen):", {
+                        networkMessageId: dbMessage.networkMessageId,
+                        id: dbMessage.id,
+                        isDeleted: dbMessage.isDeleted,
+                    });
+                    continue;
+                }
+                processedNetworkIds.add(dbMessage.networkMessageId);
 
                 // Check idempotency: already heard, already sent, or already scheduled
                 if (
@@ -163,25 +213,35 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                         NonEmptyString100.orThrow(channelId.slice(0, 100)),
                         dbMessage.createdBy ?? undefined,
                     );
+                    console.log("[AUTORESPONDER] Sending DELETE for deleted message:", {
+                        networkMessageId: dbMessage.networkMessageId,
+                        createdBy: dbMessage.createdBy,
+                        updatedAt: dbMessage.updatedAt,
+                    });
                     messagesToSend.push({
                         type: "delete",
                         message: deleteMsg,
                         networkMessageId: dbMessage.networkMessageId,
+                        idempotencyKey: dbMessage.networkMessageId,
                     });
                 } else {
                     // Reconstruct TEXT message
                     const textMsg = reconstructTextMessage(
                         dbMessage,
                         NonEmptyString100.orThrow(channelId.slice(0, 100)),
-                        encryptionKey,
-                        encrypted,
                     );
                     if (textMsg) {
-                        messagesToSend.push({
-                            type: "text",
-                            message: textMsg,
+                        console.log("[AUTORESPONDER] Sending TEXT for non-deleted message:", {
                             networkMessageId: dbMessage.networkMessageId,
+                            createdBy: dbMessage.createdBy,
+                            isDeleted: dbMessage.isDeleted,
                         });
+                    messagesToSend.push({
+                        type: "text",
+                        message: textMsg,
+                        networkMessageId: dbMessage.networkMessageId,
+                        idempotencyKey: dbMessage.networkMessageId,
+                    });
                     }
                 }
             }
@@ -241,6 +301,7 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                         type: "reaction",
                         message: reactionMsg,
                         networkMessageId: dbReaction.networkMessageId,
+                        idempotencyKey: reactionKey, // Use reactionKey for reactions, not networkMessageId
                     });
                 } else {
                     console.log("[AUTORESPONDER] Failed to reconstruct reaction:", {
@@ -272,15 +333,26 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                     state.updateCooldown(marcoUuid);
                 }
 
+                // Sort messages to ensure TEXT messages are sent before DELETE messages
+                // This prevents DELETE messages from being buffered and immediately deleting
+                // newly inserted TEXT messages during catchup
+                const sortedMessages = [...messagesToSend].sort((a, b) => {
+                    // TEXT messages come before DELETE messages
+                    if (a.type === "text" && b.type === "delete") return -1;
+                    if (a.type === "delete" && b.type === "text") return 1;
+                    // Within same type, maintain original order
+                    return 0;
+                });
+
                 console.log("[AUTORESPONDER] Sending catch-up messages:", {
-                    textMessagesCount: messagesToSend.length,
+                    textMessagesCount: sortedMessages.length,
                 });
 
                 // Record messages as sent (they were already marked as scheduled)
-                for (const msg of messagesToSend) {
-                    state.recordSentMessage(msg.networkMessageId);
+                for (const msg of sortedMessages) {
+                    state.recordSentMessage(msg.idempotencyKey);
                     // Remove from scheduled set (now in sentByUsRef)
-                    scheduledMessagesRef.current.delete(msg.networkMessageId);
+                    scheduledMessagesRef.current.delete(msg.idempotencyKey);
                 }
 
                 // Send messages in batches to avoid network flooding
@@ -289,14 +361,19 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
                 const BATCH_DELAY_MS = 100;
 
                 const sendBatches = async () => {
-                    const batches = cluster(messagesToSend, BATCH_SIZE);
+                    const batches = cluster(sortedMessages, BATCH_SIZE);
                     
                     for (let i = 0; i < batches.length; i++) {
                         const batch = batches[i];
                         
                         // Send batch synchronously
                         for (const { message } of batch) {
-                            socketClient.safeSend(message);
+                            const messageToSend = prepareEncryptedMessage(
+                                message,
+                                encrypted,
+                                encryptionKey,
+                            );
+                            socketClient.safeSend(messageToSend);
                         }
 
                         // Log batch progress
@@ -333,14 +410,26 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 
     // Handler for TEXT messages - detect other autoResponders and cancel our scheduled response
     useEffect(() => {
-        if (!uuid) return;
+        if (!uuid || !socketClient) return;
 
         const handler = (e: WsMessage<KnownMessage>) => {
-            if (!isTextMessage(e.message)) {
+            let message = e.message;
+
+            // Handle encryption at the top level
+            if (isEncryptedMessage(message)) {
+                const decrypted = decryptMessagePayload<TextMessage>(
+                    message,
+                    encryptionKey ?? "",
+                );
+                if (!decrypted) return;
+                message = decrypted;
+            }
+
+            if (!isTextMessage(message)) {
                 return;
             }
 
-            const payload: TextMessage = e.message;
+            const payload: TextMessage = message;
             if (payload.channelId !== channelId) {
                 return;
             }
@@ -365,18 +454,30 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
         };
 
         socketClient.on(WsMessageType.TEXT, handler);
-    }, [socketClient, state, channelId, uuid]);
+    }, [socketClient, state, channelId, uuid, encryptionKey]);
 
     // Handler for REACTION messages - detect other autoResponders and cancel our scheduled response
     useEffect(() => {
-        if (!uuid) return;
+        if (!uuid || !socketClient) return;
 
         const handler = (e: WsMessage<KnownMessage>) => {
-            if (!isReactionMessage(e.message)) {
+            let message = e.message;
+
+            // Handle encryption at the top level
+            if (isEncryptedMessage(message)) {
+                const decrypted = decryptMessagePayload<ReactionMessage>(
+                    message,
+                    encryptionKey ?? "",
+                );
+                if (!decrypted) return;
+                message = decrypted;
+            }
+
+            if (!isReactionMessage(message)) {
                 return;
             }
 
-            const payload: ReactionMessage = e.message;
+            const payload: ReactionMessage = message;
             if (payload.channelId !== channelId) {
                 return;
             }
@@ -406,5 +507,5 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
         };
 
         socketClient.on(WsMessageType.REACTION, handler);
-    }, [socketClient, state, channelId, uuid]);
+    }, [socketClient, state, channelId, uuid, encryptionKey]);
 }

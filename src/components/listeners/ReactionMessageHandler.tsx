@@ -18,11 +18,13 @@ import {
 } from "../../lib/local-first";
 import {
 	isReactionMessage,
+	isEncryptedMessage,
 	type KnownMessage,
 	type ReactionMessage,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
+import { decryptMessagePayload } from "../../lib/symmetric-encryption";
 import {
 	getSafeNetworkTimestamp,
 	validateNetworkTimestamp,
@@ -57,10 +59,48 @@ export const ReactionMessageHandler = () => {
 	);
 
 	useEffect(() => {
+		if (!socketClient) return;
 		const handler = (e: WsMessage<KnownMessage>) => {
-			if (!isReactionMessage(e.message)) return;
+			let message = e.message;
 
-			const payload: ReactionMessage = e.message;
+			console.log("[REACTION HANDLER] Received message", {
+				isEncrypted: isEncryptedMessage(message),
+				type: (message as any).type,
+				hasNetworkMessageId: !!(message as any).networkMessageId,
+			});
+
+			// Handle encryption at the top level
+			if (isEncryptedMessage(message)) {
+				const state = useZustand.getState();
+				const encryptionKey = state.channel.encryptionKey;
+				if (!encryptionKey) {
+					console.log(
+						"[REACTION HANDLER] Encrypted REACTION message received, but no key available. Skipping.",
+					);
+					return;
+				}
+				const decrypted = decryptMessagePayload<ReactionMessage>(
+					message,
+					encryptionKey,
+				);
+				if (!decrypted) {
+					console.warn("[REACTION HANDLER] Failed to decrypt REACTION message");
+					return;
+				}
+				message = decrypted;
+				console.log("[REACTION HANDLER] Decrypted message", {
+					networkMessageId: message.networkMessageId,
+					type: message.type,
+					isDeleted: message.isDeleted,
+				});
+			}
+
+			if (!isReactionMessage(message)) {
+				console.log("[REACTION HANDLER] Not a REACTION message, skipping");
+				return;
+			}
+
+			const payload: ReactionMessage = message;
 
 			// Use getState() to read current values without subscribing
 			const state = useZustand.getState();
@@ -205,7 +245,9 @@ function processReaction(
 				pfpUrl: String1000.orThrow(userData.pfpUrl?.slice(0, 1000) ?? "<none>"),
 				bio: String1000.orThrow(userData.bio?.slice(0, 1000) ?? ""),
 				status: String100.orThrow(userData.status?.slice(0, 100) ?? ""),
-				publicNtfyShId: String100.orThrow(userData.publicNtfyShId?.slice(0, 100) ?? ""),
+				publicNtfyShId: String100.orThrow(
+					userData.publicNtfyShId?.slice(0, 100) ?? "",
+				),
 				privateNtfyShId: String100.orThrow(""),
 			});
 		} catch {

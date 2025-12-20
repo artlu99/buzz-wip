@@ -13,19 +13,14 @@ import { useGarbledStore } from "../../hooks/use-garbled";
 import { useZustand } from "../../hooks/use-zustand";
 import { messagesForChannelQuery, useEvolu } from "../../lib/local-first";
 import {
+	isEncryptedMessage,
 	isTextMessage,
 	type KnownMessage,
 	type TextMessage,
-	type UserMessageData,
-	UserMessageDataSchema,
 	type WsMessage,
 	WsMessageType,
 } from "../../lib/sockets";
-import {
-	decryptMessageContent,
-	isSerializedEncryptedData,
-	SerializedEncryptedDataSchema,
-} from "../../lib/symmetric-encryption";
+import { decryptMessagePayload } from "../../lib/symmetric-encryption";
 import {
 	getSafeNetworkTimestamp,
 	validateNetworkTimestamp,
@@ -43,106 +38,81 @@ export const TextMessageHandler = () => {
 	allMessagesRef.current = allMessages;
 
 	useEffect(() => {
+		if (!socketClient) return;
 		const handler = (e: WsMessage<KnownMessage>) => {
-			if (!isTextMessage(e.message)) {
+			let message = e.message;
+
+			// Handle encryption at the top level
+			if (isEncryptedMessage(message)) {
+				const state = useZustand.getState();
+				const encryptionKey = state.channel.encryptionKey;
+				if (!encryptionKey) {
+					// message is encrypted but no decryption key is set
+					console.log("[TEXT HANDLER] Encrypted message but no key available", {
+						networkMessageId: message.networkMessageId,
+					});
+					useGarbledStore.getState().addMessage(message);
+					return;
+				}
+				const decrypted = decryptMessagePayload<TextMessage>(
+					message,
+					encryptionKey,
+				);
+				if (!decrypted) {
+					console.warn("[TEXT HANDLER] Unable to decrypt message", {
+						networkMessageId: message.networkMessageId,
+						hasKey: !!encryptionKey,
+					});
+					useGarbledStore.getState().addMessage(message);
+					return;
+				}
+				message = decrypted;
+				console.log("[TEXT HANDLER] Successfully decrypted message", {
+					networkMessageId: message.networkMessageId,
+					isAutoResponder:
+						"autoResponder" in message ? message.autoResponder : false,
+				});
+			}
+
+			if (!isTextMessage(message)) {
+				console.log("[TEXT HANDLER] Not a text message", {
+					type: "type" in message ? message.type : "unknown",
+					networkMessageId:
+						"networkMessageId" in message
+							? message.networkMessageId
+							: "unknown",
+				});
 				return;
 			}
-			const payload: TextMessage = e.message;
+			const payload: TextMessage = message;
 			invariant(payload.uuid, "Text message has no uuid");
 
 			// Use getState() to read current values without subscribing
 			const state = useZustand.getState();
 			const currentChannelId = state.channel.channelId;
 			const currentUuid = state.uuid;
-			const currentEncryptionKey = state.channel.encryptionKey;
 
-			if (payload.channelId !== currentChannelId) return;
-
-			if (payload.encrypted && !currentEncryptionKey) {
-				// message is encrypted but no decryption key is set
-				useGarbledStore.getState().addMessage(payload);
+			if (payload.channelId !== currentChannelId) {
+				console.log("[TEXT HANDLER] Wrong channel", {
+					payloadChannel: payload.channelId,
+					currentChannel: currentChannelId,
+					networkMessageId: payload.networkMessageId,
+				});
 				return;
 			}
 
-			let uuid: string | undefined;
-			if (isSerializedEncryptedData(payload.uuid)) {
-				uuid = decryptMessageContent(
-					payload.uuid,
-					currentEncryptionKey ?? "won't work",
-				);
-			} else {
-				uuid = payload.uuid;
-			}
-
-			if (uuid === currentUuid) return;
-			if (!uuid) {
-				console.warn("[TEXT HANDLER] Unable to decrypt uuid", { payload });
-				useGarbledStore.getState().addMessage(payload);
+			const uuid = payload.uuid;
+			if (uuid === currentUuid) {
+				console.log("[TEXT HANDLER] Own message, skipping", {
+					networkMessageId: payload.networkMessageId,
+					isAutoResponder:
+						"autoResponder" in payload ? payload.autoResponder : false,
+				});
 				return;
 			}
 
-			let content: string | undefined;
-			if (typeof payload.content === "string") {
-				content = payload.content;
-			} else {
-				if (!currentEncryptionKey) {
-					useGarbledStore.getState().addMessage(payload);
-					return;
-				}
-
-				content = decryptMessageContent(payload.content, currentEncryptionKey);
-				if (!content) {
-					useGarbledStore.getState().addMessage(payload);
-					return;
-				}
-			}
-
-			let user: UserMessageData | undefined;
-			if (payload.user && !isSerializedEncryptedData(payload.user)) {
-				user = payload.user;
-			} else {
-				const validatedEncryptedUser = SerializedEncryptedDataSchema.safeParse(
-					payload.user,
-				);
-				if (validatedEncryptedUser.success) {
-					if (currentEncryptionKey) {
-						const decryptedUser = decryptMessageContent(
-							validatedEncryptedUser.data,
-							currentEncryptionKey,
-						);
-						if (decryptedUser) {
-							const validator = UserMessageDataSchema.safeParse(decryptedUser);
-							if (validator.success) {
-								user = {
-									...validator.data,
-									status: validator.data.status ?? "",
-									publicNtfyShId: validator.data.publicNtfyShId ?? "",
-								};
-							} else {
-								console.warn("[TEXT HANDLER] Invalid user data", {
-									decryptedUser,
-									validator: validator.error,
-								});
-								user = {
-									displayName: uuid ?? "<encrypted>",
-									pfpUrl: "",
-									bio: "",
-									status: "",
-									publicNtfyShId: "",
-								};
-							}
-						}
-					} else {
-						user = {
-							displayName: uuid ?? "<encrypted>",
-							pfpUrl: "",
-							bio: "",
-							status: "",
-							publicNtfyShId: "",
-						};
-					}
-				}
-			}
+			const content = payload.content;
+			const user = payload.user;
 
 			const networkMessageId = NonEmptyString100.orThrow(
 				payload.networkMessageId.slice(0, 100),
@@ -153,8 +123,20 @@ export const TextMessageHandler = () => {
 				(m) => m.networkMessageId === networkMessageId,
 			);
 			if (existingMessage) {
+				console.log("[TEXT HANDLER] Message already exists, skipping", {
+					networkMessageId,
+					isAutoResponder: payload.autoResponder,
+					existingId: existingMessage.id,
+				});
 				return;
 			}
+
+			console.log("[TEXT HANDLER] Processing new message", {
+				networkMessageId,
+				isAutoResponder: payload.autoResponder,
+				uuid: payload.uuid,
+				hasContent: !!content,
+			});
 
 			const json = JSON.stringify(user);
 			const userItem = NonEmptyString1000.orThrow(json);

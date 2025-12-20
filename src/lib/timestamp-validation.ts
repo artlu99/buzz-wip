@@ -116,8 +116,8 @@ export function validateDeleteTimestamp(
 	messageUpdatedAt: number | string,
 ): { valid: boolean; reason?: string } {
 	if (!deleteTimestamp) {
-		// No timestamp provided - allow (will use local updatedAt)
-		return { valid: true };
+		// No timestamp provided - not valid
+		return { valid: false, reason: "No DELETE timestamp provided" };
 	}
 
 	const deleteTs = parseInt(deleteTimestamp, 10);

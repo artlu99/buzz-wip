@@ -23,7 +23,7 @@ const api = fetcher({ base: "https://ntfy.sh" });
 interface MessageDetailsModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	messageId?: string; // networkMessageId
+	networkMessageId?: string;
 }
 
 // Helper component to query a single user
@@ -52,7 +52,7 @@ const UserQuery = ({
 			{children(
 				userData
 					? {
-							uuid: userData.id,
+							uuid: uuid, // Use the networkUuid that was passed in (query filters by it)
 							displayName: userData.displayName ?? uuid,
 							pfpUrl: userData.pfpUrl,
 							bio: userData.bio,
@@ -68,7 +68,7 @@ const UserQuery = ({
 export const MessageDetailsModal = ({
 	isOpen,
 	onClose,
-	messageId,
+	networkMessageId,
 }: MessageDetailsModalProps) => {
 	const { channel, user, uuid } = useZustand();
 	const { channelId } = channel;
@@ -78,15 +78,17 @@ export const MessageDetailsModal = ({
 
 	// Find the message by networkMessageId
 	const message = useMemo(() => {
-		if (!messageId || !messages) return null;
-		return messages.find((m) => m.networkMessageId === messageId);
-	}, [messageId, messages]);
+		if (!networkMessageId || !messages) return null;
+		return messages.find((m) => m.networkMessageId === networkMessageId);
+	}, [networkMessageId, messages]);
 
 	// Get reactions for this message
-	// Use placeholder if messageId is not available (query will return empty results)
+	// Use placeholder if networkMessageId is not available (query will return empty results)
 	const reactions = useQuery(
 		reactionsForNetworkMessageIdQuery(
-			NonEmptyString100.orThrow((messageId ?? "uninitialized").slice(0, 100)),
+			NonEmptyString100.orThrow(
+				(networkMessageId ?? "uninitialized").slice(0, 100),
+			),
 		),
 	);
 
@@ -140,7 +142,7 @@ export const MessageDetailsModal = ({
 		};
 	}, [message]);
 
-	if (!isOpen || !messageId || !message) return null;
+	if (!isOpen || !networkMessageId || !message) return null;
 
 	const ownerId = message.createdBy ? OwnerId.orThrow(message.createdBy) : null;
 
