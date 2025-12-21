@@ -1,13 +1,7 @@
 import { useZustand } from "../../hooks/use-zustand";
 
-const SHOW_TOGGLE = false;
-
 export const AudioToggle = () => {
-	const { playSounds, togglePlaySounds } = useZustand();
-
-	if (!SHOW_TOGGLE) {
-		return null;
-	}
+	const { playSounds, setPlaySounds } = useZustand();
 
 	return (
 		<fieldset className="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
@@ -16,7 +10,7 @@ export const AudioToggle = () => {
 				<input
 					type="checkbox"
 					checked={playSounds}
-					onChange={togglePlaySounds}
+					onChange={() => setPlaySounds(!playSounds)}
 					disabled
 				/>
 				<i className="ph-bold ph-x" title="Disabled" />

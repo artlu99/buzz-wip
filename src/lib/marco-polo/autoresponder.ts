@@ -1,5 +1,6 @@
 import { type NonEmptyString100, sqliteTrue } from "@evolu/common";
 import type { AutoResponderState } from "../../components/listeners/AutoResponderState";
+import { useZustand } from "../../hooks/use-zustand";
 import type {
 	DeleteMessage,
 	MarcoPoloMessage,
@@ -25,10 +26,10 @@ export function isMarcoMessage(message: MarcoPoloMessage): boolean {
 export function shouldAutorespond(
 	marcoMessage: MarcoPoloMessage,
 	state: AutoResponderState,
-	autoResponder: boolean,
 ): boolean {
 	// Must have autoResponder enabled
-	if (!autoResponder) {
+	const currentAutoResponder = useZustand.getState().autoResponder;
+	if (!currentAutoResponder) {
 		console.log(
 			"[AUTORESPONDER] shouldAutorespond: false - autoResponder disabled",
 		);
@@ -43,14 +44,6 @@ export function shouldAutorespond(
 		return false;
 	}
 
-	// Blocklist disabled - idempotency and cooldown provide sufficient protection
-	// if (state.isBlocked(marcoMessage.uuid)) {
-	// 	console.log("[AUTORESPONDER] shouldAutorespond: false - UUID is blocked", {
-	// 		uuid: marcoMessage.uuid,
-	// 	});
-	// 	return false;
-	// }
-
 	// Check cooldown (30 seconds)
 	if (state.isInCooldown(marcoMessage.uuid, 30000)) {
 		console.log(
@@ -62,10 +55,6 @@ export function shouldAutorespond(
 		return false;
 	}
 
-	console.log("[AUTORESPONDER] shouldAutorespond: true - all checks passed", {
-		uuid: marcoMessage.uuid,
-		autoResponder,
-	});
 	return true;
 }
 

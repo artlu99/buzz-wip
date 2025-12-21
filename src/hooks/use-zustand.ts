@@ -69,10 +69,10 @@ export const useZustand = create(
 							status,
 						},
 					}),
-				toggleAutoResponder: () => set({ autoResponder: !get().autoResponder }),
+				setAutoResponder: (autoResponder: boolean) => set({ autoResponder }),
 				setLockdown: (lockdown: boolean) => set({ lockdown }),
-				togglePlaySounds: () => set({ playSounds: !get().playSounds }),
-				toggleVerbose: () => set({ verbose: !get().verbose }),
+				setPlaySounds: (playSounds: boolean) => set({ playSounds }),
+				setVerbose: (verbose: boolean) => set({ verbose }),
 				setRoom: (room: Record<string, number>) => set({ room: { ...room } }),
 				setUuid: (uuid: OwnerId | undefined) => set({ uuid }),
 				getActiveRoom: (maxAgeMs: number = ROOM_USERS_MAX_AGE_MS) => {

@@ -31,22 +31,14 @@ export const MarcoPoloMessageHandler = () => {
 	const { uuid, setEncryptionKey, setRoom, channel, lockdown } = useZustand();
 
 	// Memoize autoresponder options to prevent re-creating on every render
-	// Read from Zustand state directly (not getState()) to ensure reactivity
+	// encryptionKey and encrypted are no longer passed - they're read fresh from Zustand when needed
 	const autoResponderOptions = useMemo(
 		() => ({
 			socketClient,
 			channelId: channel.channelId,
 			uuid: uuid,
-			encryptionKey: channel.encryptionKey,
-			encrypted: channel.encrypted,
 		}),
-		[
-			socketClient,
-			channel.channelId,
-			uuid,
-			channel.encryptionKey,
-			channel.encrypted,
-		],
+		[socketClient, channel.channelId, uuid],
 	);
 
 	// Use autoresponder hook for Marco message handling

@@ -1,5 +1,5 @@
 import { EvoluProvider } from "@evolu/react";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect } from "react";
 import { Link, Route, useLocation } from "wouter";
 import { AuthActions } from "./components/AuthActions";
 import { AvailableReactions } from "./components/AvailableReactions";
@@ -49,21 +49,8 @@ function App() {
 		getAppOwner();
 	}, [setRoom, setUuid]);
 
-	// Track if Marco message is currently being sent (prevents race conditions during rapid re-renders)
-	// The sendingMarcoRef flag is sufficient - no need for TTL cache since useEffect dependencies
-	// already prevent rapid re-sends, and socket-level deduplication handles network duplicates
-	const sendingMarcoRef = useRef(false);
-
 	useEffect(() => {
 		if (!uuid || !socketClient) return;
-
-		// Check if we're already sending (prevents race condition during rapid re-renders)
-		if (sendingMarcoRef.current) {
-			return;
-		}
-
-		// Mark as sending immediately to prevent duplicates
-		sendingMarcoRef.current = true;
 
 		// Note: The socketClient now handles joining the salted channel URL.
 		// The Marco message still contains the plaintext channelId for app-level matching.
@@ -75,12 +62,6 @@ function App() {
 			message: {},
 			channelId: channelId,
 		});
-
-		// Reset sending flag after a short delay to prevent rapid re-sends
-		// The useEffect dependencies already prevent re-sends when channelId/socketClient/uuid change
-		setTimeout(() => {
-			sendingMarcoRef.current = false;
-		}, 100);
 	}, [channelId, socketClient, uuid]);
 
 	// Send "bye" message when browser/tab closes
@@ -168,8 +149,12 @@ function App() {
 										<AudioToggle />
 										<SaltSelector />
 										<SocketServerSelector />
-										<div className="col-span-2"><OwnerActions /></div>
-										<div className="col-span-2"><AuthActions /></div>
+										<div className="col-span-2">
+											<OwnerActions />
+										</div>
+										<div className="col-span-2">
+											<AuthActions />
+										</div>
 									</div>
 								</Route>
 							</Suspense>

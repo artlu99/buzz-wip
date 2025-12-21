@@ -1,14 +1,8 @@
 import { toast } from "react-hot-toast";
 import { useZustand } from "../../hooks/use-zustand";
 
-const SHOW_TOGGLE = true;
-
 export const AutoResponderToggle = () => {
-	const { autoResponder, toggleAutoResponder } = useZustand();
-
-	if (!SHOW_TOGGLE) {
-		return null;
-	}
+	const { autoResponder, setAutoResponder } = useZustand();
 
 	return (
 		<span>
@@ -25,7 +19,7 @@ export const AutoResponderToggle = () => {
 								? "Auto Responder disabled"
 								: "Auto Responder enabled",
 						);
-						toggleAutoResponder();
+						setAutoResponder(!autoResponder);
 					}}
 				/>
 				<i className="ph-bold ph-x" title="Disabled" />
