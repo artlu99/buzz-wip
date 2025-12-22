@@ -14,38 +14,35 @@ import { WsMessageType } from "./sockets";
 const TEST_MNEMONIC =
 	"test test test test test test test test test test test junk";
 
-// Flag to control test expectations - flip to false as functions are implemented
-const EXPECT_STUBS = true; // Set to false as you implement functions
-
 describe("Message Verification - Core Cryptographic Primitives", () => {
 	describe("Key Derivation (crypto-keys.ts)", () => {
 		describe("Happy Path", async () => {
 			it("should derive Ethereum account from valid mnemonic", async () => {
-					const account = await deriveAccountFromMnemonic(TEST_MNEMONIC);
-					expect(account).toBeDefined();
-					expect(account.address).toMatch(/^0x[a-fA-F0-9]{40}$/);
-					expect(account.account).toBeDefined();
+				const account = await deriveAccountFromMnemonic(TEST_MNEMONIC);
+				expect(account).toBeDefined();
+				expect(account.address).toMatch(/^0x[a-fA-F0-9]{40}$/);
+				expect(account.account).toBeDefined();
 			});
 
 			it("should derive same address from same mnemonic (deterministic)", async () => {
-                const account1 = await deriveAccountFromMnemonic(TEST_MNEMONIC);
-                const account2 = await deriveAccountFromMnemonic(TEST_MNEMONIC);
-                expect(account1.address).toBe(account2.address);
+				const account1 = await deriveAccountFromMnemonic(TEST_MNEMONIC);
+				const account2 = await deriveAccountFromMnemonic(TEST_MNEMONIC);
+				expect(account1.address).toBe(account2.address);
 			});
 
-			it("should derive different addresses from different mnemonics", async () => {			
-                const mnemonic2 =
-                    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-                const account1 = await deriveAccountFromMnemonic(TEST_MNEMONIC);
-                const account2 = await deriveAccountFromMnemonic(mnemonic2);
-                expect(account1.address).not.toBe(account2.address);
+			it("should derive different addresses from different mnemonics", async () => {
+				const mnemonic2 =
+					"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+				const account1 = await deriveAccountFromMnemonic(TEST_MNEMONIC);
+				const account2 = await deriveAccountFromMnemonic(mnemonic2);
+				expect(account1.address).not.toBe(account2.address);
 			});
 
 			it("should extract Ethereum address from account", async () => {
-                const account = await deriveAccountFromMnemonic(TEST_MNEMONIC);
-                const address = getEthereumAddress(account);
-                expect(address).toBe(account.address);
-                expect(address).toMatch(/^0x[a-fA-F0-9]{40}$/);
+				const account = await deriveAccountFromMnemonic(TEST_MNEMONIC);
+				const address = getEthereumAddress(account);
+				expect(address).toBe(account.address);
+				expect(address).toMatch(/^0x[a-fA-F0-9]{40}$/);
 			});
 		});
 
@@ -74,19 +71,19 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 			});
 
 			it("should handle 24-word mnemonic", async () => {
-                const mnemonic24 =
-                    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
-                const account = await deriveAccountFromMnemonic(mnemonic24);
-                expect(account.address).toMatch(/^0x[a-fA-F0-9]{40}$/);
+				const mnemonic24 =
+					"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+				const account = await deriveAccountFromMnemonic(mnemonic24);
+				expect(account.address).toMatch(/^0x[a-fA-F0-9]{40}$/);
 			});
 
 			it("should handle mnemonic with extra whitespace", async () => {
-                const mnemonicWithSpaces = `  ${TEST_MNEMONIC}  `;
-                const account1 = await deriveAccountFromMnemonic(TEST_MNEMONIC);
-                const account2 = await deriveAccountFromMnemonic(
-                    mnemonicWithSpaces.trim(),
-                );
-                expect(account1.address).toBe(account2.address);
+				const mnemonicWithSpaces = `  ${TEST_MNEMONIC}  `;
+				const account1 = await deriveAccountFromMnemonic(TEST_MNEMONIC);
+				const account2 = await deriveAccountFromMnemonic(
+					mnemonicWithSpaces.trim(),
+				);
+				expect(account1.address).toBe(account2.address);
 			});
 		});
 	});
@@ -94,172 +91,92 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 	describe("Message Envelope Construction", () => {
 		describe("Happy Path", () => {
 			it("should construct envelope for TEXT message", () => {
-				if (EXPECT_STUBS) {
-					expect(() =>
-						constructMessageEnvelope({
-							sender: "user-uuid-123",
-							timestamp: 1234567890,
-							channelId: "channel-123",
-							networkMessageId: "msg-123",
-							messageType: WsMessageType.TEXT,
-							content: "Hello, world!",
-						}),
-					).toThrow("Not implemented");
-				} else {
-					const envelope = constructMessageEnvelope({
-						sender: "user-uuid-123",
-						timestamp: 1234567890,
-						channelId: "channel-123",
-						networkMessageId: "msg-123",
-						messageType: WsMessageType.TEXT,
-						content: "Hello, world!",
-					});
+				const envelope = constructMessageEnvelope({
+					sender: "user-uuid-123",
+					timestamp: 1234567890,
+					channelId: "channel-123",
+					networkMessageId: "msg-123",
+					messageType: WsMessageType.TEXT,
+					content: "Hello, world!",
+				});
 
-					expect(envelope.sender).toBe("user-uuid-123");
-					expect(envelope.timestamp).toBe(1234567890);
-					expect(envelope.channelId).toBe("channel-123");
-					expect(envelope.networkMessageId).toBe("msg-123");
-					expect(envelope.messageType).toBe(WsMessageType.TEXT);
-					expect(envelope.content).toBe("Hello, world!");
-				}
+				expect(envelope.sender).toBe("user-uuid-123");
+				expect(envelope.timestamp).toBe(1234567890);
+				expect(envelope.channelId).toBe("channel-123");
+				expect(envelope.networkMessageId).toBe("msg-123");
+				expect(envelope.messageType).toBe(WsMessageType.TEXT);
+				expect(envelope.content).toBe("Hello, world!");
 			});
 
 			it("should construct envelope for REACTION message", () => {
-				if (EXPECT_STUBS) {
-					expect(() =>
-						constructMessageEnvelope({
-							sender: "user-uuid-123",
-							timestamp: 1234567890,
-							channelId: "channel-123",
-							networkMessageId: "msg-123",
-							messageType: WsMessageType.REACTION,
-							content: "👍",
-						}),
-					).toThrow("Not implemented");
-				} else {
-					const envelope = constructMessageEnvelope({
-						sender: "user-uuid-123",
-						timestamp: 1234567890,
-						channelId: "channel-123",
-						networkMessageId: "msg-123",
-						messageType: WsMessageType.REACTION,
-						content: "👍",
-					});
+				const envelope = constructMessageEnvelope({
+					sender: "user-uuid-123",
+					timestamp: 1234567890,
+					channelId: "channel-123",
+					networkMessageId: "msg-123",
+					messageType: WsMessageType.REACTION,
+					content: "👍",
+				});
 
-					expect(envelope.messageType).toBe(WsMessageType.REACTION);
-					expect(envelope.content).toBe("👍");
-				}
+				expect(envelope.messageType).toBe(WsMessageType.REACTION);
+				expect(envelope.content).toBe("👍");
 			});
 
 			it("should construct envelope for DELETE message", () => {
-				if (EXPECT_STUBS) {
-					expect(() =>
-						constructMessageEnvelope({
-							sender: "user-uuid-123",
-							timestamp: 1234567890,
-							channelId: "channel-123",
-							networkMessageId: "msg-123",
-							messageType: WsMessageType.DELETE,
-							content: "deleted-msg-id",
-						}),
-					).toThrow("Not implemented");
-				} else {
-					const envelope = constructMessageEnvelope({
-						sender: "user-uuid-123",
-						timestamp: 1234567890,
-						channelId: "channel-123",
-						networkMessageId: "msg-123",
-						messageType: WsMessageType.DELETE,
-						content: "deleted-msg-id",
-					});
+				const envelope = constructMessageEnvelope({
+					sender: "user-uuid-123",
+					timestamp: 1234567890,
+					channelId: "channel-123",
+					networkMessageId: "msg-123",
+					messageType: WsMessageType.DELETE,
+					content: "deleted-msg-id",
+				});
 
-					expect(envelope.messageType).toBe(WsMessageType.DELETE);
-					expect(envelope.content).toBe("deleted-msg-id");
-				}
+				expect(envelope.messageType).toBe(WsMessageType.DELETE);
+				expect(envelope.content).toBe("deleted-msg-id");
 			});
 		});
 
 		describe("Edge Cases", () => {
 			it("should handle empty content", () => {
-				if (EXPECT_STUBS) {
-					expect(() =>
-						constructMessageEnvelope({
-							sender: "user-uuid-123",
-							timestamp: 1234567890,
-							channelId: "channel-123",
-							networkMessageId: "msg-123",
-							messageType: WsMessageType.TEXT,
-							content: "",
-						}),
-					).toThrow("Not implemented");
-				} else {
-					const envelope = constructMessageEnvelope({
-						sender: "user-uuid-123",
-						timestamp: 1234567890,
-						channelId: "channel-123",
-						networkMessageId: "msg-123",
-						messageType: WsMessageType.TEXT,
-						content: "",
-					});
+				const envelope = constructMessageEnvelope({
+					sender: "user-uuid-123",
+					timestamp: 1234567890,
+					channelId: "channel-123",
+					networkMessageId: "msg-123",
+					messageType: WsMessageType.TEXT,
+					content: "",
+				});
 
-					expect(envelope.content).toBe("");
-				}
+				expect(envelope.content).toBe("");
 			});
 
 			it("should handle very long content", () => {
-				if (EXPECT_STUBS) {
-					const longContent = "a".repeat(10000);
-					expect(() =>
-						constructMessageEnvelope({
-							sender: "user-uuid-123",
-							timestamp: 1234567890,
-							channelId: "channel-123",
-							networkMessageId: "msg-123",
-							messageType: WsMessageType.TEXT,
-							content: longContent,
-						}),
-					).toThrow("Not implemented");
-				} else {
-					const longContent = "a".repeat(10000);
-					const envelope = constructMessageEnvelope({
-						sender: "user-uuid-123",
-						timestamp: 1234567890,
-						channelId: "channel-123",
-						networkMessageId: "msg-123",
-						messageType: WsMessageType.TEXT,
-						content: longContent,
-					});
+				const longContent = "a".repeat(10000);
+				const envelope = constructMessageEnvelope({
+					sender: "user-uuid-123",
+					timestamp: 1234567890,
+					channelId: "channel-123",
+					networkMessageId: "msg-123",
+					messageType: WsMessageType.TEXT,
+					content: longContent,
+				});
 
-					expect(envelope.content).toBe(longContent);
-				}
+				expect(envelope.content).toBe(longContent);
 			});
 
 			it("should handle unicode content", () => {
-				if (EXPECT_STUBS) {
-					const unicodeContent = "Hello 🌍 世界 مرحبا";
-					expect(() =>
-						constructMessageEnvelope({
-							sender: "user-uuid-123",
-							timestamp: 1234567890,
-							channelId: "channel-123",
-							networkMessageId: "msg-123",
-							messageType: WsMessageType.TEXT,
-							content: unicodeContent,
-						}),
-					).toThrow("Not implemented");
-				} else {
-					const unicodeContent = "Hello 🌍 世界 مرحبا";
-					const envelope = constructMessageEnvelope({
-						sender: "user-uuid-123",
-						timestamp: 1234567890,
-						channelId: "channel-123",
-						networkMessageId: "msg-123",
-						messageType: WsMessageType.TEXT,
-						content: unicodeContent,
-					});
+				const unicodeContent = "Hello 🌍 世界 مرحبا";
+				const envelope = constructMessageEnvelope({
+					sender: "user-uuid-123",
+					timestamp: 1234567890,
+					channelId: "channel-123",
+					networkMessageId: "msg-123",
+					messageType: WsMessageType.TEXT,
+					content: unicodeContent,
+				});
 
-					expect(envelope.content).toBe(unicodeContent);
-				}
+				expect(envelope.content).toBe(unicodeContent);
 			});
 		});
 	});
@@ -277,17 +194,8 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello, world!",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						signMessageEnvelope(envelope, account.account),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const signature = await signMessageEnvelope(
-						envelope,
-						account.account,
-					);
-					expect(signature).toMatch(/^0x[a-fA-F0-9]{130}$/);
-				}
+				const signature = await signMessageEnvelope(envelope, account.account);
+				expect(signature).toMatch(/^0x[a-fA-F0-9]{130}$/);
 			});
 
 			it("should produce same signature for same envelope and account", async () => {
@@ -301,15 +209,9 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello, world!",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						signMessageEnvelope(envelope, account.account),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const sig1 = await signMessageEnvelope(envelope, account.account);
-					const sig2 = await signMessageEnvelope(envelope, account.account);
-					expect(sig1).toBe(sig2);
-				}
+				const sig1 = await signMessageEnvelope(envelope, account.account);
+				const sig2 = await signMessageEnvelope(envelope, account.account);
+				expect(sig1).toBe(sig2);
 			});
 
 			it("should produce different signature for different content", async () => {
@@ -328,15 +230,9 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "World",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						signMessageEnvelope(envelope1, account.account),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const sig1 = await signMessageEnvelope(envelope1, account.account);
-					const sig2 = await signMessageEnvelope(envelope2, account.account);
-					expect(sig1).not.toBe(sig2);
-				}
+				const sig1 = await signMessageEnvelope(envelope1, account.account);
+				const sig2 = await signMessageEnvelope(envelope2, account.account);
+				expect(sig1).not.toBe(sig2);
 			});
 		});
 
@@ -351,22 +247,16 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						signMessageEnvelope(envelope, null as unknown as PrivateKeyAccount),
-					).rejects.toThrow("Not implemented");
-				} else {
-					await expect(
-						signMessageEnvelope(envelope, null as unknown as PrivateKeyAccount),
-					).rejects.toThrow();
+				await expect(
+					signMessageEnvelope(envelope, null as unknown as PrivateKeyAccount),
+				).rejects.toThrow();
 
-					await expect(
-						signMessageEnvelope(
-							envelope,
-							undefined as unknown as PrivateKeyAccount,
-						),
-					).rejects.toThrow();
-				}
+				await expect(
+					signMessageEnvelope(
+						envelope,
+						undefined as unknown as PrivateKeyAccount,
+					),
+				).rejects.toThrow();
 			});
 		});
 	});
@@ -384,25 +274,15 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello, world!",
 				};
 
-				if (EXPECT_STUBS) {
-					// Can't sign without signMessageEnvelope implemented, so check that
-					await expect(
-						signMessageEnvelope(envelope, account.account),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const signature = await signMessageEnvelope(
-						envelope,
-						account.account,
-					);
-					const recoveredAddress = await recoverSignerAddress(
-						envelope,
-						signature,
-					);
+				const signature = await signMessageEnvelope(envelope, account.account);
+				const recoveredAddress = await recoverSignerAddress(
+					envelope,
+					signature,
+				);
 
-					expect(recoveredAddress.toLowerCase()).toBe(
-						account.address.toLowerCase(),
-					);
-				}
+				expect(recoveredAddress.toLowerCase()).toBe(
+					account.address.toLowerCase(),
+				);
 			});
 		});
 
@@ -418,30 +298,21 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello, world!",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						signMessageEnvelope(envelope, account.account),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const signature = await signMessageEnvelope(
-						envelope,
-						account.account,
-					);
+				const signature = await signMessageEnvelope(envelope, account.account);
 
-					const tamperedEnvelope: MessageEnvelope = {
-						...envelope,
-						content: "Tampered content",
-					};
+				const tamperedEnvelope: MessageEnvelope = {
+					...envelope,
+					content: "Tampered content",
+				};
 
-					const recoveredAddress = await recoverSignerAddress(
-						tamperedEnvelope,
-						signature,
-					);
+				const recoveredAddress = await recoverSignerAddress(
+					tamperedEnvelope,
+					signature,
+				);
 
-					expect(recoveredAddress.toLowerCase()).not.toBe(
-						account.address.toLowerCase(),
-					);
-				}
+				expect(recoveredAddress.toLowerCase()).not.toBe(
+					account.address.toLowerCase(),
+				);
 			});
 		});
 	});
@@ -459,23 +330,14 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello, world!",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						signMessageEnvelope(envelope, account.account),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const signature = await signMessageEnvelope(
-						envelope,
-						account.account,
-					);
-					const isValid = await verifyMessageSignature(
-						envelope,
-						signature,
-						account.address,
-					);
+				const signature = await signMessageEnvelope(envelope, account.account);
+				const isValid = await verifyMessageSignature(
+					envelope,
+					signature,
+					account.address,
+				);
 
-					expect(isValid).toBe(true);
-				}
+				expect(isValid).toBe(true);
 			});
 
 			it("should reject signature that doesn't match sender address", async () => {
@@ -493,23 +355,14 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello, world!",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						signMessageEnvelope(envelope, account1.account),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const signature = await signMessageEnvelope(
-						envelope,
-						account1.account,
-					);
-					const isValid = await verifyMessageSignature(
-						envelope,
-						signature,
-						wrongAccount.address,
-					);
+				const signature = await signMessageEnvelope(envelope, account1.account);
+				const isValid = await verifyMessageSignature(
+					envelope,
+					signature,
+					wrongAccount.address,
+				);
 
-					expect(isValid).toBe(false);
-				}
+				expect(isValid).toBe(false);
 			});
 		});
 
@@ -525,29 +378,20 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello, world!",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						signMessageEnvelope(envelope, account.account),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const signature = await signMessageEnvelope(
-						envelope,
-						account.account,
-					);
+				const signature = await signMessageEnvelope(envelope, account.account);
 
-					const tamperedEnvelope: MessageEnvelope = {
-						...envelope,
-						content: "Tampered!",
-					};
+				const tamperedEnvelope: MessageEnvelope = {
+					...envelope,
+					content: "Tampered!",
+				};
 
-					const isValid = await verifyMessageSignature(
-						tamperedEnvelope,
-						signature,
-						account.address,
-					);
+				const isValid = await verifyMessageSignature(
+					tamperedEnvelope,
+					signature,
+					account.address,
+				);
 
-					expect(isValid).toBe(false);
-				}
+				expect(isValid).toBe(false);
 			});
 
 			it("should reject null signature", async () => {
@@ -560,24 +404,14 @@ describe("Message Verification - Core Cryptographic Primitives", () => {
 					content: "Hello",
 				};
 
-				if (EXPECT_STUBS) {
-					await expect(
-						verifyMessageSignature(
-							envelope,
-							null,
-							"0x0000000000000000000000000000000000000000",
-						),
-					).rejects.toThrow("Not implemented");
-				} else {
-					const account = await deriveAccountFromMnemonic(TEST_MNEMONIC);
-					const isValid = await verifyMessageSignature(
-						envelope,
-						null,
-						account.address,
-					);
+				const account = await deriveAccountFromMnemonic(TEST_MNEMONIC);
+				const isValid = await verifyMessageSignature(
+					envelope,
+					null,
+					account.address,
+				);
 
-					expect(isValid).toBe(false);
-				}
+				expect(isValid).toBe(false);
 			});
 		});
 	});

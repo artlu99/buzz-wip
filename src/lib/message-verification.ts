@@ -1,5 +1,7 @@
+import type { Hex } from "viem";
 import type { PrivateKeyAccount } from "viem/accounts";
-import { WsMessageType } from "./sockets";
+import { recoverTypedDataAddress } from "viem/utils";
+import type { WsMessageType } from "./sockets";
 
 /**
  * MessageEnvelope - The canonical data structure to be signed.
@@ -42,7 +44,7 @@ export const EIP712_TYPES = {
 
 /**
  * Constructs a MessageEnvelope from message data.
- * 
+ *
  * @param data - Message data to construct envelope from
  * @returns MessageEnvelope object
  */
@@ -54,14 +56,19 @@ export function constructMessageEnvelope(data: {
 	messageType: WsMessageType;
 	content: string;
 }): MessageEnvelope {
-	data;
-	// TODO: Implement envelope construction
-	throw new Error("Not implemented");
+	return {
+		sender: data.sender,
+		timestamp: data.timestamp,
+		channelId: data.channelId,
+		networkMessageId: data.networkMessageId,
+		messageType: data.messageType,
+		content: data.content,
+	};
 }
 
 /**
  * Signs a MessageEnvelope using EIP-712 typed data signing.
- * 
+ *
  * @param envelope - The MessageEnvelope to sign
  * @param account - The viem PrivateKeyAccount to sign with
  * @returns The ECDSA signature (0x-prefixed hex string, 130 chars)
@@ -70,15 +77,24 @@ export async function signMessageEnvelope(
 	envelope: MessageEnvelope,
 	account: PrivateKeyAccount,
 ): Promise<string> {
-	envelope;
-	account;
-	// TODO: Implement EIP-712 signing using account.signTypedData()
-	throw new Error("Not implemented");
+	return await account.signTypedData({
+		domain: EIP712_DOMAIN,
+		types: EIP712_TYPES,
+		primaryType: "MessageEnvelope",
+		message: {
+			sender: envelope.sender,
+			timestamp: BigInt(envelope.timestamp),
+			channelId: envelope.channelId,
+			networkMessageId: envelope.networkMessageId,
+			messageType: envelope.messageType,
+			content: envelope.content,
+		},
+	});
 }
 
 /**
  * Recovers the signer's Ethereum address from a MessageEnvelope and signature.
- * 
+ *
  * @param envelope - The MessageEnvelope that was signed
  * @param signature - The ECDSA signature (0x-prefixed hex string)
  * @returns The Ethereum address of the signer (0x-prefixed hex string)
@@ -87,15 +103,25 @@ export async function recoverSignerAddress(
 	envelope: MessageEnvelope,
 	signature: string,
 ): Promise<string> {
-	envelope;
-	signature;
-	// TODO: Implement address recovery using viem.recoverTypedDataAddress()
-	throw new Error("Not implemented");
+	return await recoverTypedDataAddress({
+		domain: EIP712_DOMAIN,
+		types: EIP712_TYPES,
+		primaryType: "MessageEnvelope",
+		message: {
+			sender: envelope.sender,
+			timestamp: BigInt(envelope.timestamp),
+			channelId: envelope.channelId,
+			networkMessageId: envelope.networkMessageId,
+			messageType: envelope.messageType,
+			content: envelope.content,
+		},
+		signature: `0x${signature.replace("0x", "")}` as Hex,
+	});
 }
 
 /**
  * Verifies that a signature matches the expected sender address.
- * 
+ *
  * @param envelope - The MessageEnvelope that was signed
  * @param signature - The ECDSA signature to verify
  * @param expectedAddress - The expected Ethereum address of the signer
@@ -106,9 +132,7 @@ export async function verifyMessageSignature(
 	signature: string | null | undefined,
 	expectedAddress: string,
 ): Promise<boolean> {
-	envelope;
-	signature;
-	expectedAddress;
-	// TODO: Implement signature verification
-	throw new Error("Not implemented");
+	if (!signature) return false;
+	const recoveredAddress = await recoverSignerAddress(envelope, signature);
+	return recoveredAddress.toLowerCase() === expectedAddress.toLowerCase();
 }
