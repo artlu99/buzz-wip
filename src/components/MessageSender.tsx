@@ -97,6 +97,7 @@ export const MessageSender = () => {
 			networkMessageId,
 			networkTimestamp: Date.now().toString(),
 			autoResponder: false,
+			signature: null,
 		};
 		const messageToSend = prepareEncryptedMessage(
 			textMessage,

@@ -180,6 +180,7 @@ export function reconstructTextMessage(
 		networkMessageId: dbMessage.networkMessageId,
 		networkTimestamp: dbMessage.networkTimestamp || String(Date.now()),
 		autoResponder: true,
+		signature: null,
 	};
 }
 
@@ -222,6 +223,7 @@ export function reconstructReactionMessage(
 		reaction: dbReaction.reaction,
 		channelId,
 		isDeleted: dbReaction.isDeleted === sqliteTrue,
+		signature: null,
 	};
 }
 

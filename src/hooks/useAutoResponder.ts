@@ -2,8 +2,8 @@ import { NonEmptyString100, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { cluster } from "radash";
 import { useEffect, useMemo, useRef } from "react";
-import { evoluInstance } from "../lib/local-first";
 import { useAutoResponderState } from "../components/listeners/AutoResponderState";
+import { evoluInstance } from "../lib/local-first";
 import {
 	isMarcoMessage,
 	reconstructDeleteMessage,

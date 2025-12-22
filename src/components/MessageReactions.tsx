@@ -129,6 +129,7 @@ export const MessageReactions = ({
 			reaction: reactionString,
 			channelId: channelId,
 			isDeleted: isDeleted,
+			signature: null,
 		};
 		const messageToSend = prepareEncryptedMessage(
 			reactionMessage,
