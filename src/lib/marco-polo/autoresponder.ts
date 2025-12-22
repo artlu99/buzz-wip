@@ -2,7 +2,9 @@ import { type NonEmptyString100, sqliteTrue } from "@evolu/common";
 import type { AutoResponderState } from "../../components/listeners/AutoResponderState";
 import { useZustand } from "../../hooks/use-zustand";
 import type {
+	CurrentUserData,
 	DeleteMessage,
+	HistoricalUserData,
 	MarcoPoloMessage,
 	ReactionMessage,
 	TextMessage,
@@ -83,25 +85,69 @@ export function filterMessagesForIdempotency(
 }
 
 /**
+ * Merge historical user data (from message) with current user data (from database).
+ * Uses historical data for context fields (status, bio) and current data for
+ * recognition/functionality fields (displayName, pfpUrl, publicNtfyShId).
+ */
+export function mergeUserData(
+	historical: HistoricalUserData,
+	current: CurrentUserData | null,
+	fallback?: CurrentUserData,
+): UserMessageData {
+	return {
+		// Historical fields: preserve context from when message was sent
+		status: historical.status || "",
+		bio: historical.bio || "",
+		// Current fields: use latest for recognition and functionality
+		// Fallback to historical data from message if current is not available
+		displayName: current?.displayName || fallback?.displayName || "",
+		pfpUrl: current?.pfpUrl || fallback?.pfpUrl || "",
+		publicNtfyShId: current?.publicNtfyShId || fallback?.publicNtfyShId || "",
+	};
+}
+
+/**
  * Reconstruct a TextMessage from a database row.
- * Messages are returned in their plaintext form as stored in the database.
- * The caller is responsible for encrypting the reconstructed message if needed.
+ * Uses hybrid approach: historical data for context (status, bio),
+ * latest data for recognition (displayName, pfpUrl, publicNtfyShId).
+ * 
+ * @param dbMessage - The database message row containing historical user data
+ * @param channelId - The channel ID for the message
+ * @param latestUserData - Optional current user data from database (for recognition fields)
+ * @returns Reconstructed TextMessage or null if invalid
  */
 export function reconstructTextMessage(
 	dbMessage: LastNTextMessagesRow,
 	channelId: NonEmptyString100,
+	latestUserData?: CurrentUserData | null,
 ): TextMessage | null {
 	if (!dbMessage.networkMessageId || !dbMessage.content) {
 		return null;
 	}
 
-	// Parse user data from JSON string
-	let user: UserMessageData;
+	// Parse historical user data from JSON string stored in message
+	let historicalUser: UserMessageData;
 	try {
-		user = JSON.parse(dbMessage.user || "{}");
+		historicalUser = JSON.parse(dbMessage.user || "{}");
 	} catch {
 		return null;
 	}
+
+	// Extract historical fields (status, bio) from message
+	const historical: HistoricalUserData = {
+		status: historicalUser.status || "",
+		bio: historicalUser.bio || "",
+	};
+
+	// Extract current fields (displayName, pfpUrl, publicNtfyShId) from historical as fallback
+	const historicalCurrent: CurrentUserData = {
+		displayName: historicalUser.displayName || "",
+		pfpUrl: historicalUser.pfpUrl || "",
+		publicNtfyShId: historicalUser.publicNtfyShId || "",
+	};
+
+	// Merge: use latest if provided, otherwise fall back to historical
+	const user = mergeUserData(historical, latestUserData ?? null, historicalCurrent);
 
 	// Get plaintext content from database
 	let plaintextContent: string;

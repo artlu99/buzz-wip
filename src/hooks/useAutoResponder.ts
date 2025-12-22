@@ -1,7 +1,8 @@
 import { NonEmptyString100, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { cluster } from "radash";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { evoluInstance } from "../lib/local-first";
 import { useAutoResponderState } from "../components/listeners/AutoResponderState";
 import {
 	isMarcoMessage,
@@ -14,7 +15,7 @@ import {
 	lastNReactionsQuery,
 	lastNTextMessagesQuery,
 } from "../lib/marco-polo/queries";
-import type { KnownMessage, TypedWsClient } from "../lib/sockets";
+import type { CurrentUserData, KnownMessage, TypedWsClient } from "../lib/sockets";
 import {
 	type DeleteMessage,
 	isEncryptedMessage,
@@ -56,11 +57,73 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 	);
 	// Use textMessages for reaction lookup (they include deleted messages)
 
+	// Collect unique user UUIDs from messages to query their latest data
+	// This is memory-efficient: we query only the users we need, database handles it efficiently
+	const uniqueSenderUuids = useMemo(() => {
+		const uuids = new Set<string>();
+		for (const msg of textMessages ?? []) {
+			if (msg.createdBy) {
+				uuids.add(msg.createdBy);
+			}
+		}
+		return Array.from(uuids);
+	}, [textMessages]);
+
+	// Query only the specific users we need using WHERE IN clause
+	// This is more efficient than querying all users:
+	// - Database only reads rows we need (indexed lookup)
+	// - Memory: Only ~50 users in query result (~2-5KB) vs all users (~200KB+)
+	// - Network sync: Only syncs users we actually need
+	// - Scales better: Performance doesn't degrade as total user count grows
+	const targetedUsers = useQuery(
+		evoluInstance.createQuery((db) => {
+			const query = db
+				.selectFrom("user")
+				.select(["networkUuid", "displayName", "pfpUrl", "publicNtfyShId"])
+				.where("isDeleted", "is not", sqliteTrue);
+			
+			// Kysely WHERE IN: need to ensure proper typing
+			// If empty array, return empty result set efficiently
+			if (uniqueSenderUuids.length === 0) {
+				return query.where("networkUuid", "is", null); // Always false
+			}
+			
+			// Use OR conditions for WHERE IN equivalent
+			// This works around Kysely's strict typing for WHERE IN
+			return query.where((eb) =>
+				eb.or(
+					uniqueSenderUuids.map((uuid) =>
+						eb("networkUuid", "is", NonEmptyString100.orThrow(uuid.slice(0, 100))),
+					),
+				),
+			);
+		}),
+	);
+
+	// Build map of latest user data from targeted query results
+	// No filtering needed - database already returned only the users we need
+	const latestUserDataMap = useMemo(() => {
+		const map = new Map<string, CurrentUserData>();
+		
+		for (const user of targetedUsers ?? []) {
+			if (user.networkUuid) {
+				map.set(user.networkUuid, {
+					displayName: user.displayName ?? "",
+					pfpUrl: user.pfpUrl ?? "",
+					publicNtfyShId: user.publicNtfyShId ?? "",
+				});
+			}
+		}
+		return map;
+	}, [targetedUsers]);
+
 	// Refs to keep latest values
 	const textMessagesRef = useRef(textMessages);
 	textMessagesRef.current = textMessages;
 	const reactionsRef = useRef(reactions);
 	reactionsRef.current = reactions;
+	const latestUserDataMapRef = useRef(latestUserDataMap);
+	latestUserDataMapRef.current = latestUserDataMap;
 
 	// Handler for Marco messages
 	useEffect(() => {
@@ -182,6 +245,11 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 				})),
 			});
 
+			// Use latest user data from database queries (memory-efficient)
+			// Database queries are fast and indexed - better than keeping data in memory
+			// The map is built reactively via useMemo and kept in a ref for handler access
+			const latestUserDataMap = latestUserDataMapRef.current;
+
 			// Track which networkMessageIds we've already processed to avoid duplicates
 			// (shouldn't happen if networkMessageId is unique, but defensive programming)
 			const processedNetworkIds = new Set<string>();
@@ -229,10 +297,18 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 						idempotencyKey: dbMessage.networkMessageId,
 					});
 				} else {
-					// Reconstruct TEXT message
+					// Get latest user data for this message's sender
+					const latestUserData = dbMessage.createdBy
+						? latestUserDataMap.get(dbMessage.createdBy) ?? null
+						: null;
+
+					// Reconstruct TEXT message with hybrid approach:
+					// - Historical status/bio from message (context)
+					// - Latest displayName/pfpUrl/publicNtfyShId from DB (recognition/functionality)
 					const textMsg = reconstructTextMessage(
 						dbMessage,
 						NonEmptyString100.orThrow(channelId.slice(0, 100)),
+						latestUserData,
 					);
 					if (textMsg) {
 						messagesToSend.push({

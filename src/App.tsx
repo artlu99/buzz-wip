@@ -55,11 +55,21 @@ function App() {
 		// Note: The socketClient now handles joining the salted channel URL.
 		// The Marco message still contains the plaintext channelId for app-level matching.
 
+		// Get current user profile data to include in Marco message
+		// This ensures new joiners immediately get our latest profile details
+		const state = useZustand.getState();
+		const currentUser = state.user;
+		const isLockdown = state.lockdown;
+
 		// send a Marco message to everyone to let them know we're here
+		// Include user profile data so others can update their local records immediately
+		// Respect lockdown: don't include user data if in lockdown mode
 		socketClient.safeSend({
 			type: WsMessageType.MARCO_POLO,
 			uuid: uuid,
-			message: {},
+			message: {
+				user: isLockdown ? undefined : currentUser,
+			},
 			channelId: channelId,
 		});
 	}, [channelId, socketClient, uuid]);

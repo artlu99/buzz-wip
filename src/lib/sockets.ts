@@ -69,13 +69,30 @@ export const ChannelDataSchema = z.object({
 	publicUselessEncryptionKey: z.string().nullable().optional(),
 });
 
-export interface UserMessageData {
-	displayName: string;
-	pfpUrl: string;
-	bio: string;
-	status: string;
-	publicNtfyShId: string;
+/**
+ * Historical user data that should be preserved from the time a message was sent.
+ * These fields provide context about the user's state when they sent the message.
+ */
+export interface HistoricalUserData {
+	status: string; // Ephemeral status at message time (e.g., "Working", "On break")
+	bio: string; // Bio at message time (may explain context of what they said)
 }
+
+/**
+ * Current user data that should always reflect the latest state.
+ * These fields are used for recognition and functionality, not historical context.
+ */
+export interface CurrentUserData {
+	displayName: string; // Current name (for recognition across old messages)
+	pfpUrl: string; // Current profile picture (for recognition)
+	publicNtfyShId: string; // Current notification ID (for functionality)
+}
+
+/**
+ * Complete user message data combining both historical and current fields.
+ * Used in messages for backward compatibility and when sending new messages.
+ */
+export interface UserMessageData extends HistoricalUserData, CurrentUserData {}
 
 // TODO: add validation, currently breaks at 1000 chars total JSON object
 export const UserMessageDataSchema = z.object({
