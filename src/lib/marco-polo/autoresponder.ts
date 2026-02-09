@@ -1,4 +1,5 @@
 import { type NonEmptyString100, sqliteTrue } from "@evolu/common";
+import type { Hex } from "viem";
 import type { AutoResponderState } from "../../components/listeners/AutoResponderState";
 import { useZustand } from "../../hooks/use-zustand";
 import type {
@@ -103,6 +104,7 @@ export function mergeUserData(
 		displayName: current?.displayName || fallback?.displayName || "",
 		pfpUrl: current?.pfpUrl || fallback?.pfpUrl || "",
 		publicNtfyShId: current?.publicNtfyShId || fallback?.publicNtfyShId || "",
+		publicEthereumAddress: current?.publicEthereumAddress || fallback?.publicEthereumAddress || null,
 	};
 }
 
@@ -144,6 +146,7 @@ export function reconstructTextMessage(
 		displayName: historicalUser.displayName || "",
 		pfpUrl: historicalUser.pfpUrl || "",
 		publicNtfyShId: historicalUser.publicNtfyShId || "",
+		publicEthereumAddress: historicalUser.publicEthereumAddress || null,
 	};
 
 	// Merge: use latest if provided, otherwise fall back to historical
@@ -186,19 +189,20 @@ export function reconstructTextMessage(
 
 /**
  * Reconstruct a DeleteMessage for a deleted message.
- * Includes the uuid of the original message creator for authorization checks.
+ * Includes the uuid and signature of the original message creator for authorization checks.
  */
 export function reconstructDeleteMessage(
 	networkMessageId: string,
 	channelId: NonEmptyString100,
-	uuid?: string,
+	uuid: string,
+	signature: Hex | null,
 ): DeleteMessage {
 	return {
 		type: WsMessageType.DELETE,
 		networkMessageId,
 		channelId,
 		uuid,
-		signature: null,
+		signature,
 	};
 }
 

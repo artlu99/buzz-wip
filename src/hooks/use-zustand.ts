@@ -1,7 +1,9 @@
 import { NonEmptyString100, type OwnerId } from "@evolu/common";
 import { create } from "zustand";
 import { combine, createJSONStorage, persist } from "zustand/middleware";
+import type { KeypairState } from "../lib/keypair-management";
 import { type ChannelData, type UserMessageData, WSS_SERVER_URL } from "../lib/sockets";
+
 
 const ROOM_USERS_MAX_AGE_MS = 600000; // 10 minutes
 const ROOM_USERS_MAX_COUNT = 100;
@@ -24,9 +26,17 @@ const initalUser: UserMessageData = {
 	bio: "",
 	publicNtfyShId: "",
 	status: "",
+	publicEthereumAddress: null,
 }
 
 const initialRoom: Record<string, number> = {}; // uuid -> unixTimestamp
+
+const initialKeypair: KeypairState = {
+	source: undefined,
+	importedPrivateKey: undefined,
+	generatedPrivateKey: undefined,
+	ethereumAddress: undefined,
+};
 
 export const useZustand = create(
 	persist(
@@ -41,6 +51,7 @@ export const useZustand = create(
 				verbose: false,
 				room: initialRoom,
 				uuid: undefined as OwnerId | undefined,
+				keypair: initialKeypair,
 			},
 			(set, get) => ({
 				setWssServer: (wssServer: string) => set({ wssServer }),
@@ -75,6 +86,8 @@ export const useZustand = create(
 				setVerbose: (verbose: boolean) => set({ verbose }),
 				setRoom: (room: Record<string, number>) => set({ room: { ...room } }),
 				setUuid: (uuid: OwnerId | undefined) => set({ uuid }),
+				setKeypair: (keypair: Partial<KeypairState>) =>
+					set({ keypair: { ...get().keypair, ...keypair } }),
 				getActiveRoom: (maxAgeMs: number = ROOM_USERS_MAX_AGE_MS) => {
 					const { room, uuid } = get();
 					const now = Date.now();
@@ -108,6 +121,7 @@ export const useZustand = create(
 			partialize: (state) => ({
 				...state,
 				channel: { ...state.channel },
+				keypair: { ...state.keypair },
 			}),
 		},
 	),

@@ -62,6 +62,7 @@ export const MessageSender = () => {
 			createdBy: uuid,
 			networkMessageId: createIdFromString(crypto.randomUUID()), // temporary, will be overridden next
 			networkTimestamp: Date.now().toString(),
+			signature: "",
 		});
 		if (!result.ok) {
 			console.error("Failed to insert message", result.error);

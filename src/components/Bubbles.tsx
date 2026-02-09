@@ -9,7 +9,9 @@ import { EvoluIdenticon } from "@evolu/react-web";
 import { alphabetical, unique } from "radash";
 import { useRef, useState } from "react";
 import invariant from "tiny-invariant";
+import type { Hex } from "viem";
 import { useGarbledStore } from "../hooks/use-garbled";
+import { useKeypair } from "../hooks/use-keypair";
 import { useZustand } from "../hooks/use-zustand";
 import { chosenIdenticonStyle, isValidHttpUrl } from "../lib/helpers";
 import {
@@ -17,6 +19,7 @@ import {
 	messagesForChannelQuery,
 	useEvolu,
 } from "../lib/local-first";
+import { signMessageEnvelope } from "../lib/message-verification";
 import {
 	type DeleteMessage,
 	type KnownMessage,
@@ -86,6 +89,7 @@ export const Bubbles = () => {
 	const { channelId } = channel;
 	const { update } = useEvolu();
 	const socketClient = useSocket();
+	const { account: activeKeypair } = useKeypair();
 	const { getMessages } = useGarbledStore();
 	const [selectedMessageId, setSelectedMessageId] = useState<
 		string | undefined
@@ -115,6 +119,7 @@ export const Bubbles = () => {
 	};
 
 	const handleDelete = async (item: (typeof messagesQueryResult)[0]) => {
+		invariant(uuid, "UUID is required");
 		// Soft delete the message in local database
 		update("message", {
 			id: item.id,
@@ -130,13 +135,36 @@ export const Bubbles = () => {
 		});
 
 		// Use updatedAt timestamp for DELETE (when message was deleted locally)
+		// Try to sign the DELETE message if we have a keypair
+		let signature: string | null = null;
+		let typedSignature: Hex | null = null;
+		if (activeKeypair) {
+			signature = await signMessageEnvelope(
+				{
+					sender: uuid,
+					timestamp: Number(item.networkTimestamp),
+					channelId: item.channelId,
+					networkMessageId: item.networkMessageId,
+					messageType: WsMessageType.DELETE,
+					content: item.content,
+				},
+				activeKeypair.account,
+			);
+			typedSignature = `0x${signature.replace("0x", "")}`;
+			console.log("Signed DELETE message", typedSignature);
+			signature = typedSignature;
+		} else {
+			console.log("No keypair available, sending unsigned DELETE");
+		}
+
+		invariant(!!typedSignature, "Signature is required");
 		const deleteMessage: DeleteMessage = {
 			uuid: uuid,
 			type: WsMessageType.DELETE,
 			networkMessageId: item.networkMessageId,
 			networkTimestamp: new Date(item.updatedAt).getTime().toString(),
 			channelId: item.channelId,
-			signature: null,
+			signature: typedSignature,
 		};
 		console.log("deleteMessage", deleteMessage);
 		if (!socketClient) return;

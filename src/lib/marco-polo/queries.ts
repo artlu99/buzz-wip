@@ -27,6 +27,7 @@ export const lastNTextMessagesQuery = (
 				"updatedAt",
 				"networkMessageId",
 				"networkTimestamp",
+				"signature",
 				"isDeleted",
 			])
 			.where("channelId", "is", channelId)
@@ -68,6 +69,7 @@ export const lastNReactionsQuery = (
 				"messageId",
 				"networkMessageId",
 				"networkTimestamp",
+				"signature",
 			])
 			.where("channelId", "is", channelId)
 			.where("networkMessageId", "is not", null)

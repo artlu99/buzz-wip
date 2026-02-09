@@ -4,10 +4,12 @@ ephemeral public and private messages
 
 ## TODO
 
+- [ ] [UI] boss panic button
 - [ ] [UI] signing delete messages, regular messages
     - [ ] how to get public key if user is offline
     - [ ] concern about griefing / spoofing deletes
 - [ ] [SECURITY] user metadata anonymization on websockets
+    - [ ] per-room salt on the routing identifier?
     - [ ] also, constant-size padding
 - [ ] [UX] sign into channel with insecure link
     - [ ] QR code

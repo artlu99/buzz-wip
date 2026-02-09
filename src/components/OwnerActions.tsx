@@ -2,6 +2,7 @@ import { type AppOwner, Mnemonic } from "@evolu/common";
 import { localAuth } from "@evolu/react-web";
 import { useEffect, useState } from "react";
 import { formatTypeError } from "../lib/helpers";
+import { getKeySource, getStoredEthereumAddress } from "../lib/keypair-management";
 import { service, useEvolu } from "../lib/local-first";
 import { OwnerProfile } from "./OwnerProfile";
 
@@ -37,6 +38,26 @@ export const OwnerActions = () => {
 	};
 
 	const handleResetAppOwnerClick = () => {
+		// Check if user has a derived keypair that would be lost
+		const keySource = getKeySource();
+		const ethereumAddress = getStoredEthereumAddress();
+		
+		if (keySource === "derived" && ethereumAddress) {
+			const confirmed = confirm(
+				`⚠️ Warning: Resetting your mnemonic will make your Ethereum address unrecoverable.\n\n` +
+				`Current address: ${ethereumAddress}\n\n` +
+				`If you reset:\n` +
+				`• Your current Ethereum address will be lost forever\n` +
+				`• You won't be able to sign messages with this address\n` +
+				`• Other users who know this address won't be able to verify your messages\n\n` +
+				`If you want to keep using this address, export your private key first (feature coming soon).\n\n` +
+				`Do you still want to reset? This will delete all your local data.`
+			);
+			if (!confirmed) {
+				return;
+			}
+		}
+		
 		if (confirm("Are you sure? This will delete all your local data.")) {
 			void evolu.resetAppOwner();
 		}

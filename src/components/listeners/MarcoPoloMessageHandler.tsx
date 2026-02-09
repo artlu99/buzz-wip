@@ -243,6 +243,7 @@ export const MarcoPoloMessageHandler = () => {
 				bio: "",
 				status: "",
 				publicNtfyShId: "",
+				publicEthereumAddress: null,
 			};
 			if (payload.message.user) {
 				user = payload.message.user;
@@ -261,6 +262,9 @@ export const MarcoPoloMessageHandler = () => {
 				const publicNtfyShId = String100.orThrow(
 					user.publicNtfyShId?.slice(0, 100) ?? "",
 				);
+				const publicEthereumAddress = String100.orThrow(
+					user.publicEthereumAddress?.slice(0, 100) ?? "",
+				);
 
 				upsert("user", {
 					id: createIdFromString(networkUuid),
@@ -271,6 +275,7 @@ export const MarcoPoloMessageHandler = () => {
 					status,
 					publicNtfyShId,
 					privateNtfyShId: String100.orThrow(""),
+					publicEthereumAddress,
 				});
 			}
 		};

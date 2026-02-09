@@ -116,6 +116,7 @@ export const MessageReactions = ({
 					channelId: channelId,
 					createdBy: uuid,
 					networkTimestamp: Date.now().toString(),
+					signature: "",
 				});
 			}
 		}

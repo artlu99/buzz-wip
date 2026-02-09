@@ -2,6 +2,7 @@ import { NonEmptyString100, sqliteTrue } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { cluster } from "radash";
 import { useEffect, useMemo, useRef } from "react";
+import type { Hex } from "viem";
 import { useAutoResponderState } from "../components/listeners/AutoResponderState";
 import { evoluInstance } from "../lib/local-first";
 import {
@@ -79,7 +80,7 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 		evoluInstance.createQuery((db) => {
 			const query = db
 				.selectFrom("user")
-				.select(["networkUuid", "displayName", "pfpUrl", "publicNtfyShId"])
+				.select(["networkUuid", "displayName", "pfpUrl", "publicNtfyShId", "publicEthereumAddress"])
 				.where("isDeleted", "is not", sqliteTrue);
 			
 			// Kysely WHERE IN: need to ensure proper typing
@@ -111,6 +112,7 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 					displayName: user.displayName ?? "",
 					pfpUrl: user.pfpUrl ?? "",
 					publicNtfyShId: user.publicNtfyShId ?? "",
+					publicEthereumAddress: user.publicEthereumAddress ? `0x${user.publicEthereumAddress.replace("0x", "")}` : null,
 				});
 			}
 		}
@@ -284,11 +286,15 @@ export function useAutoResponder(options: UseAutoResponderOptions) {
 				}
 
 				if (dbMessage.isDeleted === sqliteTrue) {
-					// Send DELETE message
+					// Send DELETE message (signed or unsigned based on what's stored)
+					const signature = dbMessage.signature
+						? (`0x${dbMessage.signature.replace("0x", "")}` as Hex)
+						: null;
 					const deleteMsg = reconstructDeleteMessage(
 						dbMessage.networkMessageId,
 						NonEmptyString100.orThrow(channelId.slice(0, 100)),
-						dbMessage.createdBy ?? undefined,
+						dbMessage.createdBy ?? "",
+						signature,
 					);
 					messagesToSend.push({
 						type: "delete",

@@ -166,6 +166,7 @@ export const TextMessageHandler = () => {
 				createdBy: OwnerId.orThrow(uuid),
 				networkMessageId: networkMessageId,
 				networkTimestamp: safeNetworkTimestamp,
+				signature: payload.signature ?? "",
 			});
 			if (user && user.displayName !== payload.uuid) {
 				const networkUuid = NonEmptyString100.orThrow(uuid);
@@ -189,6 +190,7 @@ export const TextMessageHandler = () => {
 					status,
 					publicNtfyShId,
 					privateNtfyShId: String100.orThrow(""),
+					publicEthereumAddress: String100.orThrow(""),
 				});
 			}
 		};

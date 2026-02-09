@@ -6,6 +6,7 @@ import {
 } from "@evolu/common";
 import { useQuery } from "@evolu/react";
 import { useEffect, useState } from "react";
+import type { Hex } from "viem";
 import { useLocation } from "wouter";
 import { useZustand } from "../hooks/use-zustand";
 import { useEvolu, usersQuery } from "../lib/local-first";
@@ -25,6 +26,8 @@ export const ProfileEditor = () => {
 	const [publicNtfyShId, setPublicNtfyShId] = useState(
 		user.publicNtfyShId ?? "",
 	);
+	const [publicEthereumAddress, setPublicEthereumAddress] =
+		useState<Hex | null>(user.publicEthereumAddress ?? null);
 	const [isSaving, setIsSaving] = useState(false);
 
 	useEffect(() => {
@@ -48,6 +51,11 @@ export const ProfileEditor = () => {
 			setBio(userData.bio ?? user.bio);
 			setStatus(userData.status ?? user.status);
 			setPublicNtfyShId(userData.publicNtfyShId ?? user.publicNtfyShId);
+			setPublicEthereumAddress(
+				userData.publicEthereumAddress
+					? `0x${userData.publicEthereumAddress.replace("0x", "")}`
+					: (user.publicEthereumAddress ?? null),
+			);
 		}
 	}, [
 		existingUser,
@@ -56,6 +64,7 @@ export const ProfileEditor = () => {
 		user.bio,
 		user.status,
 		user.publicNtfyShId,
+		user.publicEthereumAddress,
 	]);
 
 	const handleSave = async () => {
@@ -76,6 +85,9 @@ export const ProfileEditor = () => {
 			const bioTrimmed = (bio ?? "").trim().slice(0, 1000);
 			const statusTrimmed = (status ?? "").trim().slice(0, 100);
 			const publicNtfyShIdTrimmed = (publicNtfyShId ?? "").trim().slice(0, 100);
+			const publicEthereumAddressTrimmed = (publicEthereumAddress ?? "")
+				.trim()
+				.slice(0, 100);
 
 			// String100 and String1000 are nullable types, so empty strings should be fine
 			// We'll use orThrow to ensure type safety, but provide defaults for empty strings
@@ -92,6 +104,9 @@ export const ProfileEditor = () => {
 			const publicNtfyShIdStr = publicNtfyShIdTrimmed
 				? String100.orThrow(publicNtfyShIdTrimmed)
 				: String100.orThrow("");
+			const publicEthereumAddressStr = publicEthereumAddressTrimmed
+				? String100.orThrow(publicEthereumAddressTrimmed)
+				: String100.orThrow("");
 
 			// Check if user already exists
 			if (existingUser && existingUser.length > 0) {
@@ -104,6 +119,7 @@ export const ProfileEditor = () => {
 					bio: bioStr,
 					status: statusStr,
 					publicNtfyShId: publicNtfyShIdStr,
+					publicEthereumAddress: publicEthereumAddressStr,
 				});
 			} else {
 				// Insert new user
@@ -115,6 +131,7 @@ export const ProfileEditor = () => {
 					status: statusStr,
 					publicNtfyShId: publicNtfyShIdStr,
 					privateNtfyShId: String100.orThrow(""),
+					publicEthereumAddress: publicEthereumAddressStr,
 				});
 
 				if (!result.ok) {

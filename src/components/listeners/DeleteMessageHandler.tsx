@@ -3,6 +3,8 @@ import { useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import invariant from "tiny-invariant";
 import { lru } from "tiny-lru";
+import { useGarbledStore } from "../../hooks/use-garbled";
+import { useZustand } from "../../hooks/use-zustand";
 import {
 	type AllReactionsForAllMessagesRow,
 	allReactionsForAllMessagesQuery,
@@ -19,10 +21,8 @@ import {
 	WsMessageType,
 } from "../../lib/sockets";
 import { decryptMessagePayload } from "../../lib/symmetric-encryption";
-import { useZustand } from "../../hooks/use-zustand";
 import { validateDeleteTimestamp } from "../../lib/timestamp-validation";
 import { useSocket } from "../../providers/SocketProvider";
-import { useGarbledStore } from "../../hooks/use-garbled";
 
 // Buffer DELETE messages that arrive before their messages
 type PendingDelete = {
@@ -208,14 +208,24 @@ function processDeleteMessage(
 		return;
 	}
 
-	// verify the signature
+	// verify the signature (when present)
+	// For backwards compatibility, we accept unsigned DELETE messages from old clients
 	if (payload.signature !== null) {
-		// TODO: Implement signature verification
-		console.warn("[DELETE HANDLER] Signature verification failed:", {
-			networkMessageId: payload.networkMessageId,
-			signature: payload.signature,
-		});
-		return;
+		// TODO: Implement signature verification using verifyMessageSignature()
+		// For now, we accept signatures without verification
+		console.log(
+			"[DELETE HANDLER] Signed DELETE message (verification not yet implemented):",
+			{
+				networkMessageId: payload.networkMessageId,
+			},
+		);
+	} else {
+		console.log(
+			"[DELETE HANDLER] Unsigned DELETE message (backwards compatibility mode):",
+			{
+				networkMessageId: payload.networkMessageId,
+			},
+		);
 	}
 
 	// Filter messages that should be deleted based on timestamp

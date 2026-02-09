@@ -6,7 +6,7 @@ import {
 	sqliteFalse,
 	sqliteTrue,
 } from "@evolu/common";
-import { useQuery } from "@evolu/react";
+import { useEvolu, useQuery } from "@evolu/react";
 import { useEffect, useRef } from "react";
 import { lru } from "tiny-lru";
 import { useZustand } from "../../hooks/use-zustand";
@@ -14,11 +14,10 @@ import {
 	type MessageId,
 	type MessagesForChannelRow,
 	messagesForChannelQuery,
-	useEvolu,
 } from "../../lib/local-first";
 import {
-	isReactionMessage,
 	isEncryptedMessage,
+	isReactionMessage,
 	type KnownMessage,
 	type ReactionMessage,
 	type WsMessage,
@@ -65,8 +64,8 @@ export const ReactionMessageHandler = () => {
 
 			console.log("[REACTION HANDLER] Received message", {
 				isEncrypted: isEncryptedMessage(message),
-				type: (message as any).type,
-				hasNetworkMessageId: !!(message as any).networkMessageId,
+				type: message.type,
+				hasNetworkMessageId: !!message.networkMessageId,
 			});
 
 			// Handle encryption at the top level
@@ -248,7 +247,9 @@ function processReaction(
 				publicNtfyShId: String100.orThrow(
 					userData.publicNtfyShId?.slice(0, 100) ?? "",
 				),
-				privateNtfyShId: String100.orThrow(""),
+				publicEthereumAddress: String100.orThrow(
+					userData.publicEthereumAddress?.slice(0, 100) ?? "",
+				),
 			});
 		} catch {
 			// Invalid user data - create minimal record
@@ -260,7 +261,7 @@ function processReaction(
 				bio: String1000.orThrow(""),
 				status: String100.orThrow(""),
 				publicNtfyShId: String100.orThrow(""),
-				privateNtfyShId: String100.orThrow(""),
+				publicEthereumAddress: null,
 			});
 		}
 	} else {
@@ -274,7 +275,7 @@ function processReaction(
 			bio: String1000.orThrow(""),
 			status: String100.orThrow(""),
 			publicNtfyShId: String100.orThrow(""),
-			privateNtfyShId: String100.orThrow(""),
+			publicEthereumAddress: null,
 		});
 	}
 	// Create deterministic ID from network identifiers for idempotent upsert
